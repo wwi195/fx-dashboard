@@ -79,3 +79,23 @@ T.test('parseDateTime: 数字を含まない文字列は失敗', function () {
 T.test('parseDateTime: 日付なし+fallbackDateもなしは失敗', function () {
   T.assertEqual(FX.parseDateTime('18:02', null).ok, false);
 });
+
+T.test('parseCsv: 引用符内のカンマ・改行・エスケープされた引用符', function () {
+  var input = 'a,"b,c",d\n"e\nf",g,h\n"i""j",k,l';
+  var rows = FX.parseCsv(input);
+  T.assertEqual(rows, [
+    ['a', 'b,c', 'd'],
+    ['e\nf', 'g', 'h'],
+    ['i"j', 'k', 'l']
+  ]);
+});
+
+T.test('parseCsv: 末尾改行があっても空行を追加しない', function () {
+  var rows = FX.parseCsv('a,b\nc,d\n');
+  T.assertEqual(rows, [['a', 'b'], ['c', 'd']]);
+});
+
+T.test('parseCsv: CRLF区切りに対応', function () {
+  var rows = FX.parseCsv('a,b\r\nc,d');
+  T.assertEqual(rows, [['a', 'b'], ['c', 'd']]);
+});

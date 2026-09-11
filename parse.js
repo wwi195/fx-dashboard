@@ -79,8 +79,76 @@
     return { ok: true, date: new Date(year, month - 1, day, hour, minute, second) };
   }
 
+  function parseCsv(text) {
+    var rows = [];
+    var row = [];
+    var field = '';
+    var inQuotes = false;
+    var i = 0;
+    var len = text.length;
+
+    function pushField() {
+      row.push(field);
+      field = '';
+    }
+    function pushRow() {
+      pushField();
+      rows.push(row);
+      row = [];
+    }
+
+    while (i < len) {
+      var ch = text[i];
+      if (inQuotes) {
+        if (ch === '"') {
+          if (text[i + 1] === '"') {
+            field += '"';
+            i += 2;
+            continue;
+          } else {
+            inQuotes = false;
+            i += 1;
+            continue;
+          }
+        } else {
+          field += ch;
+          i += 1;
+          continue;
+        }
+      } else {
+        if (ch === '"') {
+          inQuotes = true;
+          i += 1;
+          continue;
+        } else if (ch === ',') {
+          pushField();
+          i += 1;
+          continue;
+        } else if (ch === '\r') {
+          i += 1;
+          continue;
+        } else if (ch === '\n') {
+          pushRow();
+          i += 1;
+          continue;
+        } else {
+          field += ch;
+          i += 1;
+          continue;
+        }
+      }
+    }
+
+    if (field.length > 0 || row.length > 0) {
+      pushRow();
+    }
+
+    return rows;
+  }
+
   return {
     parseAmount: parseAmount,
-    parseDateTime: parseDateTime
+    parseDateTime: parseDateTime,
+    parseCsv: parseCsv
   };
 });
