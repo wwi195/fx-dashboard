@@ -8,6 +8,10 @@
 })(typeof window !== 'undefined' ? window : globalThis, function () {
   'use strict';
 
+  // normalizeEntry / normalizeExit は列の並び順（インデックス）に依存する。
+  // ヘッダーの文言が変わっても、列の順序が変わらない限り壊れない。
+  // 列順は docs/superpowers/specs/2026-09-11-fx-dashboard-design.md の「列定義」を参照。
+
   function parseAmount(raw) {
     if (raw === null || raw === undefined) return { ok: false, raw: raw };
     var s = String(raw).replace(/\\/g, '').trim();
@@ -146,9 +150,59 @@
     return rows;
   }
 
+  function normalizeEntry(rows) {
+    return rows.map(function (row) {
+      var ts = parseDateTime(row[0], null);
+      var lotNum = parseFloat(row[3]);
+      return {
+        timestamp: ts,
+        pair: (row[1] || '').trim(),
+        direction: (row[2] || '').trim(),
+        lot: isNaN(lotNum) ? null : lotNum,
+        rationale: row[4] || '',
+        entryPrice: row[5] || '',
+        tpPrice: row[6] || '',
+        slPrice: row[7] || '',
+        invalidateCondition: row[8] || ''
+      };
+    });
+  }
+
+  function normalizeExit(rows) {
+    return rows.map(function (row) {
+      var submissionTs = parseDateTime(row[0], null);
+      var submissionDate = submissionTs.ok ? submissionTs.date : null;
+
+      var entryDt = parseDateTime(row[4], submissionDate);
+      var entryFallbackDate = entryDt.ok ? entryDt.date : submissionDate;
+      var exitDt = parseDateTime(row[5], entryFallbackDate);
+
+      if (entryDt.ok && exitDt.ok && exitDt.date.getTime() < entryDt.date.getTime()) {
+        exitDt = { ok: true, date: new Date(exitDt.date.getTime() + 24 * 60 * 60 * 1000) };
+      }
+
+      var lotNum = parseFloat(row[3]);
+      var ocoRaw = (row[7] || '').trim().toUpperCase();
+
+      return {
+        pair: (row[1] || '').trim(),
+        direction: (row[2] || '').trim(),
+        lot: isNaN(lotNum) ? null : lotNum,
+        entryDateTime: entryDt,
+        exitDateTime: exitDt,
+        amount: parseAmount(row[6]),
+        ocoFollowed: ocoRaw === 'YES' ? true : (ocoRaw === 'NO' ? false : null),
+        ocoReason: row[8] || '',
+        matchedScenario: row[9] || ''
+      };
+    });
+  }
+
   return {
     parseAmount: parseAmount,
     parseDateTime: parseDateTime,
-    parseCsv: parseCsv
+    parseCsv: parseCsv,
+    normalizeEntry: normalizeEntry,
+    normalizeExit: normalizeExit
   };
 });
