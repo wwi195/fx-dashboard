@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>FXダッシュボード テスト</title>
+<style>
+  body { font-family: sans-serif; padding: 16px; background: #fafafa; }
+  #test-summary { font-weight: bold; margin-bottom: 12px; }
+  ul { list-style: none; padding: 0; }
+  li { padding: 4px 8px; font-family: monospace; font-size: 13px; }
+  li.pass { color: #2f9e59; }
+  li.fail { color: #c0392b; background: #fdecea; }
+</style>
+</head>
+<body>
+<h1>FXダッシュボード テスト</h1>
+<div id="test-summary">実行中…</div>
+<ul id="test-results"></ul>
+
+<script src="../parse.js"></script>
+<script src="../match.js"></script>
+<script src="../aggregate.js"></script>
+<script src="../chart-data.js"></script>
+<script src="harness.js"></script>
+<script src="parse.test.js"></script>
+<script src="match.test.js"></script>
+<script src="aggregate.test.js"></script>
+<script src="chart-data.test.js"></script>
+<script>
+  var summary = window.FXTest.run();
+  var out = document.getElementById('test-results');
+  summary.results.forEach(function (r) {
+    var li = document.createElement('li');
+    li.className = r.pass ? 'pass' : 'fail';
+    li.textContent = (r.pass ? '✓ ' : '✗ ') + r.name + (r.pass ? '' : ' — ' + r.error);
+    out.appendChild(li);
+  });
+  document.getElementById('test-summary').textContent =
+    summary.passCount + ' passed, ' + summary.failCount + ' failed';
+</script>
+</body>
+</html>
