@@ -1,4 +1,5 @@
 require('./parse.test.js');
+require('./match.test.js');
 
 var harness = require('./harness.js');
 var summary = harness.run();
