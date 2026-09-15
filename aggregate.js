@@ -152,7 +152,8 @@
     return recent.map(function (t, i) {
       var distanceFromLatest = n - 1 - i;
       var label = distanceFromLatest === 0 ? '最新' : (distanceFromLatest + 1) + '件前';
-      return { label: label, pnl: t.amount.pnl };
+      var pips = t.lot ? t.amount.pnl / (YEN_PER_PIP_PER_LOT * t.lot) : null;
+      return { label: label, pnl: t.amount.pnl, lot: t.lot, pips: pips };
     });
   }
 

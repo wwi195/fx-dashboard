@@ -141,9 +141,9 @@ T.test('recentTradesSeries: 古い順に並べ、最新から数えたラベル�
   ];
   var series = FX.recentTradesSeries(trades, 3);
   T.assertEqual(series, [
-    { label: '3件前', pnl: -50 },
-    { label: '2件前', pnl: 200 },
-    { label: '最新', pnl: -30 }
+    { label: '3件前', pnl: -50, lot: null, pips: null },
+    { label: '2件前', pnl: 200, lot: null, pips: null },
+    { label: '最新', pnl: -30, lot: null, pips: null }
   ]);
 });
 
@@ -154,8 +154,8 @@ T.test('recentTradesSeries: limitが件数より多ければ全件を返す', fu
   ];
   var series = FX.recentTradesSeries(trades, 10);
   T.assertEqual(series, [
-    { label: '2件前', pnl: 100 },
-    { label: '最新', pnl: -50 }
+    { label: '2件前', pnl: 100, lot: null, pips: null },
+    { label: '最新', pnl: -50, lot: null, pips: null }
   ]);
 });
 
@@ -168,7 +168,17 @@ T.test('recentTradesSeries: 並び順が古い順でなくても内部でソー�
   ];
   var series = FX.recentTradesSeries(trades, 2);
   T.assertEqual(series, [
-    { label: '2件前', pnl: 200 },
-    { label: '最新', pnl: -30 }
+    { label: '2件前', pnl: 200, lot: null, pips: null },
+    { label: '最新', pnl: -30, lot: null, pips: null }
+  ]);
+});
+
+T.test('recentTradesSeries: lotがあればpipsを算出する(YEN_PER_PIP_PER_LOT=100)', function () {
+  var trades = [
+    trade('ドル円', '買い', 14000, 0, true, new Date(2026, 8, 1, 10, 0, 0), 0.1)
+  ];
+  var series = FX.recentTradesSeries(trades, 1);
+  T.assertEqual(series, [
+    { label: '最新', pnl: 14000, lot: 0.1, pips: 1400 }
   ]);
 });
