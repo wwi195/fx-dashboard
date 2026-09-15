@@ -13,15 +13,15 @@ T.test('buildDailyPnlChartConfig: labels/data/色を組み立てる', function (
   T.assertEqual(config.type, 'bar');
 });
 
-T.test('buildDailyCountChartConfig: labels/data/色を組み立てる', function () {
-  var dailyPnl = [
-    { date: '2026-09-01', pnl: 500, count: 2 },
-    { date: '2026-09-02', pnl: -200, count: 1 }
+T.test('buildRecentTradesChartConfig: labels/data/色を組み立てる', function () {
+  var series = [
+    { label: '2件前', pnl: 100 },
+    { label: '最新', pnl: -50 }
   ];
-  var config = FX.buildDailyCountChartConfig(dailyPnl);
-  T.assertEqual(config.data.labels, ['2026-09-01', '2026-09-02']);
-  T.assertEqual(config.data.datasets[0].data, [2, 1]);
-  T.assertEqual(config.data.datasets[0].backgroundColor, ['#2563eb', '#2563eb']);
+  var config = FX.buildRecentTradesChartConfig(series);
+  T.assertEqual(config.data.labels, ['2件前', '最新']);
+  T.assertEqual(config.data.datasets[0].data, [100, -50]);
+  T.assertEqual(config.data.datasets[0].backgroundColor, ['#2f9e59', '#c0392b']);
   T.assertEqual(config.type, 'bar');
 });
 

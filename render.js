@@ -113,11 +113,11 @@
     }
   }
 
-  function renderDailyChart(canvas, dailyPnl, prevChart, metric) {
+  function renderDailyChart(canvas, data, prevChart, metric) {
     if (prevChart) prevChart.destroy();
-    var config = metric === 'count'
-      ? FX.buildDailyCountChartConfig(dailyPnl)
-      : FX.buildDailyPnlChartConfig(dailyPnl);
+    var config = metric === 'recent'
+      ? FX.buildRecentTradesChartConfig(data)
+      : FX.buildDailyPnlChartConfig(data);
     return new Chart(canvas.getContext('2d'), config);
   }
 

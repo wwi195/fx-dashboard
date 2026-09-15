@@ -131,3 +131,44 @@ T.test('summarize: 負けトレードが0件ならrrはnull', function () {
   T.assertEqual(s.avgLoss, null);
   T.assertEqual(s.rr, null);
 });
+
+T.test('recentTradesSeries: 古い順に並べ、最新から数えたラベルを付ける', function () {
+  var trades = [
+    trade('ドル円', '買い', 100, 0, true, new Date(2026, 8, 1, 10, 0, 0)),
+    trade('ドル円', '買い', -50, 0, true, new Date(2026, 8, 2, 10, 0, 0)),
+    trade('ドル円', '買い', 200, 0, true, new Date(2026, 8, 3, 10, 0, 0)),
+    trade('ドル円', '買い', -30, 0, true, new Date(2026, 8, 4, 10, 0, 0))
+  ];
+  var series = FX.recentTradesSeries(trades, 3);
+  T.assertEqual(series, [
+    { label: '3件前', pnl: -50 },
+    { label: '2件前', pnl: 200 },
+    { label: '最新', pnl: -30 }
+  ]);
+});
+
+T.test('recentTradesSeries: limitが件数より多ければ全件を返す', function () {
+  var trades = [
+    trade('ドル円', '買い', 100, 0, true, new Date(2026, 8, 1, 10, 0, 0)),
+    trade('ドル円', '買い', -50, 0, true, new Date(2026, 8, 2, 10, 0, 0))
+  ];
+  var series = FX.recentTradesSeries(trades, 10);
+  T.assertEqual(series, [
+    { label: '2件前', pnl: 100 },
+    { label: '最新', pnl: -50 }
+  ]);
+});
+
+T.test('recentTradesSeries: 並び順が古い順でなくても内部でソートする', function () {
+  var trades = [
+    trade('ドル円', '買い', -30, 0, true, new Date(2026, 8, 4, 10, 0, 0)),
+    trade('ドル円', '買い', 100, 0, true, new Date(2026, 8, 1, 10, 0, 0)),
+    trade('ドル円', '買い', 200, 0, true, new Date(2026, 8, 3, 10, 0, 0)),
+    trade('ドル円', '買い', -50, 0, true, new Date(2026, 8, 2, 10, 0, 0))
+  ];
+  var series = FX.recentTradesSeries(trades, 2);
+  T.assertEqual(series, [
+    { label: '2件前', pnl: 200 },
+    { label: '最新', pnl: -30 }
+  ]);
+});

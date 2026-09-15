@@ -1,6 +1,8 @@
 (function () {
   'use strict';
 
+  var RECENT_TRADES_LIMIT = 20;
+
   function main() {
     var els = {
       errorBanner: document.getElementById('error-banner'),
@@ -55,7 +57,15 @@
       var visibleTrades = tradesForPeriod(state.trades, state.periodKey);
 
       FX.renderSummary(els.summary, summary, state.avgUnit);
-      state.dailyChart = FX.renderDailyChart(els.dailyCanvas, summary.dailyPnl, state.dailyChart, state.dailyMetric);
+
+      var dailyChartData;
+      if (state.dailyMetric === 'recent') {
+        var periodValidTrades = FX.filterByPeriod(FX.filterValidTrades(state.trades), period);
+        dailyChartData = FX.recentTradesSeries(periodValidTrades, RECENT_TRADES_LIMIT);
+      } else {
+        dailyChartData = summary.dailyPnl;
+      }
+      state.dailyChart = FX.renderDailyChart(els.dailyCanvas, dailyChartData, state.dailyChart, state.dailyMetric);
       state.pairDirectionChart = FX.renderPairDirection(
         els.pairDirectionCanvas, els.pairDirectionList, summary.byPairDirection, state.pairDirectionChart
       );

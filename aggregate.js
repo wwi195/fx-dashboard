@@ -141,10 +141,26 @@
     };
   }
 
+  // 直近limit件のトレードを古い順に並べ、最新から数えた相対ラベルを付ける。
+  // 呼び出し側で有効なトレード(amount.ok && exitDateTime.ok)に絞ってから渡すこと。
+  function recentTradesSeries(trades, limit) {
+    var sorted = trades.slice().sort(function (a, b) {
+      return a.exitDateTime.date.getTime() - b.exitDateTime.date.getTime();
+    });
+    var recent = limit ? sorted.slice(-limit) : sorted;
+    var n = recent.length;
+    return recent.map(function (t, i) {
+      var distanceFromLatest = n - 1 - i;
+      var label = distanceFromLatest === 0 ? '最新' : (distanceFromLatest + 1) + '件前';
+      return { label: label, pnl: t.amount.pnl };
+    });
+  }
+
   return {
     periodRange: periodRange,
     filterValidTrades: filterValidTrades,
     filterByPeriod: filterByPeriod,
-    summarize: summarize
+    summarize: summarize,
+    recentTradesSeries: recentTradesSeries
   };
 });
