@@ -25,6 +25,37 @@ T.test('buildRecentTradesChartConfig: labels/data/色を組み立てる', functi
   T.assertEqual(config.type, 'bar');
 });
 
+T.test('buildRecentTradesChartConfig: ツールチップに損益/ロット/pipsを表示する', function () {
+  var series = [
+    { label: '2件前', pnl: 100, lot: 0.1, pips: 1000 },
+    { label: '最新', pnl: -50, lot: null, pips: null }
+  ];
+  var config = FX.buildRecentTradesChartConfig(series);
+  var labelFn = config.options.plugins.tooltip.callbacks.label;
+  T.assertEqual(labelFn({ dataIndex: 0 }), ['損益: ¥+100', 'ロット: 0.1', 'pips: +1000.0']);
+  T.assertEqual(labelFn({ dataIndex: 1 }), ['損益: ¥-50', 'ロット: -', 'pips: -']);
+});
+
+T.test('buildRecentTradesChartConfig: 横軸ラベルは5件おき+最新のみ表示する', function () {
+  var n = 20;
+  var series = [];
+  for (var i = 0; i < n; i++) {
+    var distanceFromLatest = n - 1 - i;
+    var label = distanceFromLatest === 0 ? '最新' : (distanceFromLatest + 1) + '件前';
+    series.push({ label: label, pnl: 0, lot: null, pips: null });
+  }
+  var config = FX.buildRecentTradesChartConfig(series);
+  var tickFn = config.options.scales.x.ticks.callback;
+
+  T.assertEqual(tickFn(null, 0), '20件前');
+  T.assertEqual(tickFn(null, 5), '15件前');
+  T.assertEqual(tickFn(null, 10), '10件前');
+  T.assertEqual(tickFn(null, 15), '5件前');
+  T.assertEqual(tickFn(null, 19), '最新');
+  T.assertEqual(tickFn(null, 1), '');
+  T.assertEqual(tickFn(null, 18), '');
+});
+
 T.test('buildPairDirectionChartConfig: labels/data/色を組み立てる', function () {
   var byPairDirection = [
     { pair: 'ドル円', direction: '買い', pnlSum: 500, count: 2, winRate: 0.5 },

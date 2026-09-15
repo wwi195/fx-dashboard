@@ -11,6 +11,16 @@
   var COLOR_PLUS = '#2f9e59';
   var COLOR_MINUS = '#c0392b';
 
+  function formatYen(n) {
+    var sign = n >= 0 ? '+' : '';
+    return '¥' + sign + Math.round(n).toLocaleString('ja-JP');
+  }
+
+  function formatPipsValue(n) {
+    var sign = n >= 0 ? '+' : '';
+    return sign + n.toFixed(1);
+  }
+
   function buildDailyPnlChartConfig(dailyPnl) {
     return {
       type: 'bar',
@@ -39,8 +49,36 @@
         }]
       },
       options: {
-        plugins: { legend: { display: false } },
-        scales: { y: { beginAtZero: true } }
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function (ctx) {
+                var d = series[ctx.dataIndex];
+                return [
+                  '損益: ' + formatYen(d.pnl),
+                  'ロット: ' + (d.lot !== null && d.lot !== undefined ? d.lot : '-'),
+                  'pips: ' + (d.pips !== null && d.pips !== undefined ? formatPipsValue(d.pips) : '-')
+                ];
+              }
+            }
+          }
+        },
+        scales: {
+          y: { beginAtZero: true },
+          x: {
+            ticks: {
+              callback: function (value, index) {
+                var total = series.length;
+                var distanceFromLatest = total - 1 - index;
+                if (distanceFromLatest === 0 || (distanceFromLatest + 1) % 5 === 0) {
+                  return series[index].label;
+                }
+                return '';
+              }
+            }
+          }
+        }
       }
     };
   }
