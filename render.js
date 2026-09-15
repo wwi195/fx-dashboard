@@ -21,6 +21,20 @@
     return x === null || x === undefined ? '-' : x.toFixed(2);
   }
 
+  function formatPips(n) {
+    var sign = n >= 0 ? '+' : '';
+    return sign + n.toFixed(1) + 'pips';
+  }
+
+  function formatAvgStat(yenValue, pipsValue, unit, negate) {
+    if (unit === 'pips') {
+      if (pipsValue === null) return '-';
+      return formatPips(negate ? -pipsValue : pipsValue);
+    }
+    if (yenValue === null) return '-';
+    return formatMoney(negate ? -yenValue : yenValue);
+  }
+
   function formatDateTime(date) {
     var m = date.getMonth() + 1;
     var d = date.getDate();
@@ -70,7 +84,7 @@
     return el;
   }
 
-  function renderSummary(container, summary) {
+  function renderSummary(container, summary, avgUnit) {
     container.innerHTML = '';
 
     var mainRow = document.createElement('div');
@@ -84,8 +98,8 @@
     subRow.className = 'summary-sub-row';
     subRow.appendChild(buildSubStat('勝率', formatPercent(summary.winRate)));
     subRow.appendChild(buildSubStat('トレード数', String(summary.count) + '件'));
-    subRow.appendChild(buildSubStat('平均利益', summary.avgWin === null ? '-' : formatMoney(summary.avgWin)));
-    subRow.appendChild(buildSubStat('平均損失', summary.avgLoss === null ? '-' : formatMoney(-summary.avgLoss)));
+    subRow.appendChild(buildSubStat('平均利益', formatAvgStat(summary.avgWin, summary.avgWinPips, avgUnit, false)));
+    subRow.appendChild(buildSubStat('平均損失', formatAvgStat(summary.avgLoss, summary.avgLossPips, avgUnit, true)));
     subRow.appendChild(buildSubStat('RR比', formatRR(summary.rr)));
     subRow.appendChild(buildSubStat('最大勝ち', summary.maxWin === null ? '-' : formatMoney(summary.maxWin)));
     subRow.appendChild(buildSubStat('最大負け', summary.maxLoss === null ? '-' : formatMoney(summary.maxLoss)));

@@ -9,6 +9,7 @@
       periodFilter: document.getElementById('period-filter'),
       summary: document.getElementById('summary-tiles'),
       dailyChartTabs: document.getElementById('daily-chart-tabs'),
+      avgUnitSelect: document.getElementById('avg-unit-select'),
       dailyCanvas: document.getElementById('daily-chart'),
       pairDirectionCanvas: document.getElementById('pair-direction-chart'),
       pairDirectionList: document.getElementById('pair-direction-list'),
@@ -19,6 +20,7 @@
       trades: [],
       periodKey: 'all',
       dailyMetric: 'pnl',
+      avgUnit: 'yen',
       dailyChart: null,
       pairDirectionChart: null
     };
@@ -52,7 +54,7 @@
       var summary = FX.summarize(state.trades, period);
       var visibleTrades = tradesForPeriod(state.trades, state.periodKey);
 
-      FX.renderSummary(els.summary, summary);
+      FX.renderSummary(els.summary, summary, state.avgUnit);
       state.dailyChart = FX.renderDailyChart(els.dailyCanvas, summary.dailyPnl, state.dailyChart, state.dailyMetric);
       state.pairDirectionChart = FX.renderPairDirection(
         els.pairDirectionCanvas, els.pairDirectionList, summary.byPairDirection, state.pairDirectionChart
@@ -80,6 +82,11 @@
       rerender();
     }
 
+    function onAvgUnitChange() {
+      state.avgUnit = els.avgUnitSelect.value;
+      rerender();
+    }
+
     function fetchCsv(url) {
       return fetch(url).then(function (res) {
         if (!res.ok) throw new Error('HTTPエラー: ' + res.status);
@@ -89,6 +96,7 @@
 
     els.periodFilter.addEventListener('click', onPeriodClick);
     els.dailyChartTabs.addEventListener('click', onDailyMetricClick);
+    els.avgUnitSelect.addEventListener('change', onAvgUnitChange);
 
     if (!window.FX_CONFIG || !FX_CONFIG.CSV_ENTRY || !FX_CONFIG.CSV_EXIT) {
       showError(

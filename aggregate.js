@@ -53,6 +53,9 @@
     return arr.reduce(function (a, b) { return a + b; }, 0);
   }
 
+  // 1ロット・1pipsあたりの円額。ユーザーの取引ルールに基づく固定値。
+  var YEN_PER_PIP_PER_LOT = 100;
+
   function summarize(trades, period) {
     var valid = filterValidTrades(trades);
     var excludedCount = trades.length - valid.length;
@@ -62,6 +65,8 @@
     var swapSum = 0;
     var wins = [];
     var losses = [];
+    var winsPips = [];
+    var lossesPips = [];
     var dailyMap = {};
     var pairDirMap = {};
 
@@ -72,6 +77,12 @@
       swapSum += swap;
       if (pnl > 0) wins.push(pnl);
       if (pnl < 0) losses.push(pnl);
+
+      if (t.lot) {
+        var pips = pnl / (YEN_PER_PIP_PER_LOT * t.lot);
+        if (pnl > 0) winsPips.push(pips);
+        if (pnl < 0) lossesPips.push(pips);
+      }
 
       var dateKey = formatDateKey(t.exitDateTime.date);
       if (!dailyMap[dateKey]) dailyMap[dateKey] = { pnl: 0, count: 0 };
@@ -94,6 +105,8 @@
     var rr = avgWin !== null && avgLoss !== null && avgLoss > 0 ? avgWin / avgLoss : null;
     var maxWin = wins.length > 0 ? Math.max.apply(null, wins) : null;
     var maxLoss = losses.length > 0 ? Math.min.apply(null, losses) : null;
+    var avgWinPips = winsPips.length > 0 ? sum(winsPips) / winsPips.length : null;
+    var avgLossPips = lossesPips.length > 0 ? Math.abs(sum(lossesPips)) / lossesPips.length : null;
 
     var dailyPnl = Object.keys(dailyMap).sort().map(function (k) {
       return { date: k, pnl: dailyMap[k].pnl, count: dailyMap[k].count };
@@ -117,6 +130,8 @@
       winRate: winRate,
       avgWin: avgWin,
       avgLoss: avgLoss,
+      avgWinPips: avgWinPips,
+      avgLossPips: avgLossPips,
       rr: rr,
       maxWin: maxWin,
       maxLoss: maxLoss,

@@ -30,10 +30,11 @@ T.test('periodRange: 7dはnowの7日前ちょうどからnowまで', function ()
   T.assertDateEqual(r.end, now);
 });
 
-function trade(pair, direction, pnl, swap, exitDateOk, exitDate) {
+function trade(pair, direction, pnl, swap, exitDateOk, exitDate, lot) {
   return {
     pair: pair,
     direction: direction,
+    lot: lot === undefined ? null : lot,
     amount: { ok: true, pnl: pnl, swap: swap },
     exitDateTime: { ok: exitDateOk, date: exitDate }
   };
@@ -41,11 +42,11 @@ function trade(pair, direction, pnl, swap, exitDateOk, exitDate) {
 
 function buildFixture() {
   return [
-    trade('ドル円', '買い', 1000, 0, true, new Date(2026, 8, 1, 10, 0, 0)),
-    trade('ドル円', '買い', -500, 0, true, new Date(2026, 8, 1, 12, 0, 0)),
-    trade('ドル円', '売り', 2000, 0, true, new Date(2026, 8, 2, 9, 0, 0)),
-    { pair: 'メキシコペソ円', direction: '買い', amount: { ok: true, pnl: -1000, swap: 300 }, exitDateTime: { ok: true, date: new Date(2026, 8, 3, 8, 0, 0) } },
-    { pair: 'ドル円', direction: '買い', amount: { ok: false, raw: '???' }, exitDateTime: { ok: true, date: new Date(2026, 8, 1, 9, 0, 0) } }
+    trade('ドル円', '買い', 1000, 0, true, new Date(2026, 8, 1, 10, 0, 0), 5),
+    trade('ドル円', '買い', -500, 0, true, new Date(2026, 8, 1, 12, 0, 0), 3),
+    trade('ドル円', '売り', 2000, 0, true, new Date(2026, 8, 2, 9, 0, 0), 10),
+    { pair: 'メキシコペソ円', direction: '買い', lot: 10, amount: { ok: true, pnl: -1000, swap: 300 }, exitDateTime: { ok: true, date: new Date(2026, 8, 3, 8, 0, 0) } },
+    { pair: 'ドル円', direction: '買い', lot: 5, amount: { ok: false, raw: '???' }, exitDateTime: { ok: true, date: new Date(2026, 8, 1, 9, 0, 0) } }
   ];
 }
 
@@ -82,6 +83,12 @@ T.test('summarize: 5件フィクスチャで全指標を検証', function () {
   T.assertEqual(s.maxWin, 2000);
   T.assertEqual(s.maxLoss, -1000);
 
+  // pips換算: 1ロット・1pips = 100円。
+  // 勝ち: T1(1000円,5ロット)=2pips, T3(2000円,10ロット)=2pips → 平均2pips
+  // 負け: T2(-500円,3ロット)=-1.666...pips, T4(-1000円,10ロット)=-1pips → 平均絶対値1.333...pips
+  T.assertTrue(Math.abs(s.avgWinPips - 2) < 1e-9, 'avgWinPips: ' + s.avgWinPips);
+  T.assertTrue(Math.abs(s.avgLossPips - 4 / 3) < 1e-9, 'avgLossPips: ' + s.avgLossPips);
+
   T.assertEqual(s.dailyPnl, [
     { date: '2026-09-01', pnl: 500, count: 2 },
     { date: '2026-09-02', pnl: 2000, count: 1 },
@@ -104,6 +111,18 @@ T.test('summarize: トレード0件ならwinRate/avgWin/avgLoss/rr/maxWin/maxLos
   T.assertEqual(s.rr, null);
   T.assertEqual(s.maxWin, null);
   T.assertEqual(s.maxLoss, null);
+  T.assertEqual(s.avgWinPips, null);
+  T.assertEqual(s.avgLossPips, null);
+});
+
+T.test('summarize: ロットがnullのトレードは円平均には含むがpips平均からは除く', function () {
+  var trades = [
+    trade('ドル円', '買い', 1000, 0, true, new Date(2026, 8, 1, 10, 0, 0), null),
+    trade('ドル円', '買い', 500, 0, true, new Date(2026, 8, 1, 11, 0, 0), 5)
+  ];
+  var s = FX.summarize(trades, null);
+  T.assertEqual(s.avgWin, 750);
+  T.assertTrue(Math.abs(s.avgWinPips - 1) < 1e-9, 'avgWinPips: ' + s.avgWinPips);
 });
 
 T.test('summarize: 負けトレードが0件ならrrはnull', function () {
