@@ -8,10 +8,14 @@
 確認できるようにする。あわせて、横軸のラベル（「20件前」〜「最新」）が20個並んで
 見づらいため、5件おきに間引いて表示する。
 
+また、「日別」タブの横軸も日付がフル表記（例: `2026-09-08`）で長く読みにくいため、
+1本目だけ年を含む表記にし、2本目以降は月/日だけの表記にする。
+
 ## 2. 対象外
 
-- 既存の集計ロジック（`summarize`）や日別タブへの変更はなし
-- バーの本数（20本）は変更しない。間引くのはラベルの表示のみ
+- 既存の集計ロジック（`summarize`）への変更はなし
+- 「直近20件」タブのバーの本数（20本）は変更しない。間引くのはラベルの表示のみ
+- 「日別」タブのバーの本数・集計内容は変更しない。変更するのは横軸ラベルの表示形式のみ
 
 ## 3. データ拡張: `aggregate.js`
 
@@ -57,14 +61,27 @@ distanceFromLatest = total - 1 - index
 show = (distanceFromLatest === 0) || ((distanceFromLatest + 1) % 5 === 0)
 ```
 
-## 5. 影響を受けないファイル
+## 5. 表示: `chart-data.js`（日別タブの横軸）
+
+`buildDailyPnlChartConfig(dailyPnl)` に `options.scales.x.ticks.callback` を追加する。
+`dailyPnl[i].date` は`aggregate.js`の`formatDateKey`が生成する `YYYY-MM-DD` 形式の文字列。
+
+- `index === 0`（先頭のバー）: `YYYY/M/D`（例: `2026/6/23`）
+- それ以外: `M/D`（例: `9/8`）
+
+`data.labels`自体（ツールチップのタイトルに使われる元のラベル）は変更しない。
+変更するのはx軸のティック表示のみ。
+
+## 6. 影響を受けないファイル
 
 `render.js` / `app.js` はデータを素通しするだけなので変更不要。
 
-## 6. テスト
+## 7. テスト
 
 - `test/aggregate.test.js`: `recentTradesSeries`が`lot`/`pips`を正しく算出する
   こと（lotありの通常ケース、lot=nullのケース）
-- `test/chart-data.test.js`: `buildRecentTradesChartConfig`のツールチップ
-  コールバックが期待通りの3行を返すこと、x軸ticksコールバックが
-  5件おき+最新のみを表示すること
+- `test/chart-data.test.js`:
+  - `buildRecentTradesChartConfig`のツールチップコールバックが期待通りの3行を
+    返すこと、x軸ticksコールバックが5件おき+最新のみを表示すること
+  - `buildDailyPnlChartConfig`のx軸ticksコールバックが、先頭のみ`YYYY/M/D`、
+    それ以外は`M/D`を返すこと
