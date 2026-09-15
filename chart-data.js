@@ -21,6 +21,14 @@
     return sign + n.toFixed(1);
   }
 
+  function formatDailyAxisLabel(dateStr, isFirst) {
+    var parts = dateStr.split('-');
+    var y = parts[0];
+    var m = String(Number(parts[1]));
+    var d = String(Number(parts[2]));
+    return isFirst ? (y + '/' + m + '/' + d) : (m + '/' + d);
+  }
+
   function buildDailyPnlChartConfig(dailyPnl) {
     return {
       type: 'bar',
@@ -33,7 +41,16 @@
       },
       options: {
         plugins: { legend: { display: false } },
-        scales: { y: { beginAtZero: true } }
+        scales: {
+          y: { beginAtZero: true },
+          x: {
+            ticks: {
+              callback: function (value, index) {
+                return formatDailyAxisLabel(dailyPnl[index].date, index === 0);
+              }
+            }
+          }
+        }
       }
     };
   }

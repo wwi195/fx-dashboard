@@ -13,6 +13,19 @@ T.test('buildDailyPnlChartConfig: labels/data/色を組み立てる', function (
   T.assertEqual(config.type, 'bar');
 });
 
+T.test('buildDailyPnlChartConfig: 横軸ラベルは先頭だけ年表記、他はM/D表記', function () {
+  var dailyPnl = [
+    { date: '2026-06-23', pnl: 500, count: 1 },
+    { date: '2026-06-30', pnl: -200, count: 1 },
+    { date: '2026-09-08', pnl: 100, count: 1 }
+  ];
+  var config = FX.buildDailyPnlChartConfig(dailyPnl);
+  var tickFn = config.options.scales.x.ticks.callback;
+  T.assertEqual(tickFn(null, 0), '2026/6/23');
+  T.assertEqual(tickFn(null, 1), '6/30');
+  T.assertEqual(tickFn(null, 2), '9/8');
+});
+
 T.test('buildRecentTradesChartConfig: labels/data/色を組み立てる', function () {
   var series = [
     { label: '2件前', pnl: 100 },
