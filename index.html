@@ -22,7 +22,11 @@
 
   <div class="charts-row">
     <section class="chart-section">
-      <h2>日別損益</h2>
+      <h2>日別推移</h2>
+      <div id="daily-chart-tabs" class="chart-tabs">
+        <button type="button" class="active" data-daily-metric="pnl">日別</button>
+        <button type="button" data-daily-metric="count">件数別</button>
+      </div>
       <canvas id="daily-chart"></canvas>
     </section>
 

@@ -8,6 +8,7 @@
       main: document.getElementById('app-main'),
       periodFilter: document.getElementById('period-filter'),
       summary: document.getElementById('summary-tiles'),
+      dailyChartTabs: document.getElementById('daily-chart-tabs'),
       dailyCanvas: document.getElementById('daily-chart'),
       pairDirectionCanvas: document.getElementById('pair-direction-chart'),
       pairDirectionList: document.getElementById('pair-direction-list'),
@@ -17,6 +18,7 @@
     var state = {
       trades: [],
       periodKey: 'all',
+      dailyMetric: 'pnl',
       dailyChart: null,
       pairDirectionChart: null
     };
@@ -51,7 +53,7 @@
       var visibleTrades = tradesForPeriod(state.trades, state.periodKey);
 
       FX.renderSummary(els.summary, summary);
-      state.dailyChart = FX.renderDailyChart(els.dailyCanvas, summary.dailyPnl, state.dailyChart);
+      state.dailyChart = FX.renderDailyChart(els.dailyCanvas, summary.dailyPnl, state.dailyChart, state.dailyMetric);
       state.pairDirectionChart = FX.renderPairDirection(
         els.pairDirectionCanvas, els.pairDirectionList, summary.byPairDirection, state.pairDirectionChart
       );
@@ -68,6 +70,16 @@
       rerender();
     }
 
+    function onDailyMetricClick(event) {
+      var btn = event.target.closest('[data-daily-metric]');
+      if (!btn) return;
+      state.dailyMetric = btn.getAttribute('data-daily-metric');
+      Array.prototype.forEach.call(els.dailyChartTabs.querySelectorAll('[data-daily-metric]'), function (b) {
+        b.classList.toggle('active', b === btn);
+      });
+      rerender();
+    }
+
     function fetchCsv(url) {
       return fetch(url).then(function (res) {
         if (!res.ok) throw new Error('HTTPエラー: ' + res.status);
@@ -76,6 +88,7 @@
     }
 
     els.periodFilter.addEventListener('click', onPeriodClick);
+    els.dailyChartTabs.addEventListener('click', onDailyMetricClick);
 
     if (!window.FX_CONFIG || !FX_CONFIG.CSV_ENTRY || !FX_CONFIG.CSV_EXIT) {
       showError(

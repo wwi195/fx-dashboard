@@ -83,9 +83,9 @@ T.test('summarize: 5件フィクスチャで全指標を検証', function () {
   T.assertEqual(s.maxLoss, -1000);
 
   T.assertEqual(s.dailyPnl, [
-    { date: '2026-09-01', pnl: 500 },
-    { date: '2026-09-02', pnl: 2000 },
-    { date: '2026-09-03', pnl: -1000 }
+    { date: '2026-09-01', pnl: 500, count: 2 },
+    { date: '2026-09-02', pnl: 2000, count: 1 },
+    { date: '2026-09-03', pnl: -1000, count: 1 }
   ]);
 
   var byPd = {};

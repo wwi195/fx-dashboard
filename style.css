@@ -131,6 +131,27 @@ body {
   max-height: 260px;
 }
 
+.chart-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.chart-tabs button {
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--card-bg);
+  color: var(--text);
+  font-size: 12px;
+}
+
+.chart-tabs button.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
 .pair-direction-list {
   list-style: none;
   padding: 0;

@@ -99,9 +99,11 @@
     }
   }
 
-  function renderDailyChart(canvas, dailyPnl, prevChart) {
+  function renderDailyChart(canvas, dailyPnl, prevChart, metric) {
     if (prevChart) prevChart.destroy();
-    var config = FX.buildDailyChartConfig(dailyPnl);
+    var config = metric === 'count'
+      ? FX.buildDailyCountChartConfig(dailyPnl)
+      : FX.buildDailyPnlChartConfig(dailyPnl);
     return new Chart(canvas.getContext('2d'), config);
   }
 

@@ -74,7 +74,9 @@
       if (pnl < 0) losses.push(pnl);
 
       var dateKey = formatDateKey(t.exitDateTime.date);
-      dailyMap[dateKey] = (dailyMap[dateKey] || 0) + pnl;
+      if (!dailyMap[dateKey]) dailyMap[dateKey] = { pnl: 0, count: 0 };
+      dailyMap[dateKey].pnl += pnl;
+      dailyMap[dateKey].count += 1;
 
       var pdKey = t.pair + '|' + t.direction;
       if (!pairDirMap[pdKey]) {
@@ -94,7 +96,7 @@
     var maxLoss = losses.length > 0 ? Math.min.apply(null, losses) : null;
 
     var dailyPnl = Object.keys(dailyMap).sort().map(function (k) {
-      return { date: k, pnl: dailyMap[k] };
+      return { date: k, pnl: dailyMap[k].pnl, count: dailyMap[k].count };
     });
     var byPairDirection = Object.keys(pairDirMap).map(function (k) {
       var e = pairDirMap[k];

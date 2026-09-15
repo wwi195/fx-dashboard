@@ -1,15 +1,27 @@
 var FX = typeof module === 'object' ? require('../chart-data.js') : window.FX;
 var T = typeof module === 'object' ? require('./harness.js') : window.FXTest;
 
-T.test('buildDailyChartConfig: labels/data/色を組み立てる', function () {
+T.test('buildDailyPnlChartConfig: labels/data/色を組み立てる', function () {
   var dailyPnl = [
-    { date: '2026-09-01', pnl: 500 },
-    { date: '2026-09-02', pnl: -200 }
+    { date: '2026-09-01', pnl: 500, count: 2 },
+    { date: '2026-09-02', pnl: -200, count: 1 }
   ];
-  var config = FX.buildDailyChartConfig(dailyPnl);
+  var config = FX.buildDailyPnlChartConfig(dailyPnl);
   T.assertEqual(config.data.labels, ['2026-09-01', '2026-09-02']);
   T.assertEqual(config.data.datasets[0].data, [500, -200]);
   T.assertEqual(config.data.datasets[0].backgroundColor, ['#2f9e59', '#c0392b']);
+  T.assertEqual(config.type, 'bar');
+});
+
+T.test('buildDailyCountChartConfig: labels/data/色を組み立てる', function () {
+  var dailyPnl = [
+    { date: '2026-09-01', pnl: 500, count: 2 },
+    { date: '2026-09-02', pnl: -200, count: 1 }
+  ];
+  var config = FX.buildDailyCountChartConfig(dailyPnl);
+  T.assertEqual(config.data.labels, ['2026-09-01', '2026-09-02']);
+  T.assertEqual(config.data.datasets[0].data, [2, 1]);
+  T.assertEqual(config.data.datasets[0].backgroundColor, ['#2563eb', '#2563eb']);
   T.assertEqual(config.type, 'bar');
 });
 

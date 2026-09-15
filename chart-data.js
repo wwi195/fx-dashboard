@@ -10,8 +10,9 @@
 
   var COLOR_PLUS = '#2f9e59';
   var COLOR_MINUS = '#c0392b';
+  var COLOR_ACCENT = '#2563eb';
 
-  function buildDailyChartConfig(dailyPnl) {
+  function buildDailyPnlChartConfig(dailyPnl) {
     return {
       type: 'bar',
       data: {
@@ -24,6 +25,23 @@
       options: {
         plugins: { legend: { display: false } },
         scales: { y: { beginAtZero: true } }
+      }
+    };
+  }
+
+  function buildDailyCountChartConfig(dailyPnl) {
+    return {
+      type: 'bar',
+      data: {
+        labels: dailyPnl.map(function (d) { return d.date; }),
+        datasets: [{
+          data: dailyPnl.map(function (d) { return d.count; }),
+          backgroundColor: dailyPnl.map(function () { return COLOR_ACCENT; })
+        }]
+      },
+      options: {
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
       }
     };
   }
@@ -46,7 +64,8 @@
   }
 
   return {
-    buildDailyChartConfig: buildDailyChartConfig,
+    buildDailyPnlChartConfig: buildDailyPnlChartConfig,
+    buildDailyCountChartConfig: buildDailyCountChartConfig,
     buildPairDirectionChartConfig: buildPairDirectionChartConfig
   };
 });
