@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FXダッシュボード (開発用/合成データ)</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<p style="padding:8px 16px;background:#fff3cd;font-size:12px;">
+  これは合成データによる動作確認用ページです。test/fixtures/ の中身を読み込みます。
+</p>
+<div id="error-banner" class="error-banner" hidden></div>
+<div id="empty-state" class="empty-state" hidden>記録がありません。</div>
+
+<div id="app-main" hidden>
+  <header id="period-filter" class="period-filter">
+    <button type="button" class="active" data-period="all">全期間</button>
+    <button type="button" data-period="month">今月</button>
+    <button type="button" data-period="week">今週</button>
+    <button type="button" data-period="7d">直近7日</button>
+  </header>
+
+  <section id="summary-tiles" class="summary-tiles"></section>
+
+  <div class="charts-row">
+    <section class="chart-section">
+      <h2>日別損益</h2>
+      <canvas id="daily-chart"></canvas>
+    </section>
+
+    <section class="chart-section">
+      <h2>通貨ペア × 方向</h2>
+      <canvas id="pair-direction-chart"></canvas>
+      <ul id="pair-direction-list" class="pair-direction-list"></ul>
+    </section>
+  </div>
+
+  <section class="trade-list-section">
+    <h2>トレード一覧</h2>
+    <div id="trade-list" class="trade-list"></div>
+  </section>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<script>
+  window.FX_CONFIG = {
+    CSV_ENTRY: 'test/fixtures/sample-entries.csv',
+    CSV_EXIT: 'test/fixtures/sample-exits.csv'
+  };
+</script>
+<script src="parse.js"></script>
+<script src="match.js"></script>
+<script src="aggregate.js"></script>
+<script src="chart-data.js"></script>
+<script src="render.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
