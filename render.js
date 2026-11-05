@@ -84,15 +84,95 @@
     return el;
   }
 
-  function renderSummary(container, summary, avgUnit) {
+  function buildSwapTile(value, positive, isOpen) {
+    var tile = document.createElement('button');
+    tile.type = 'button';
+    tile.className = 'summary-tile summary-tile-button ' + (positive ? 'pnl-plus' : 'pnl-minus');
+    var labelEl = document.createElement('div');
+    labelEl.className = 'summary-tile-label';
+    var valueEl = document.createElement('div');
+    valueEl.className = 'summary-tile-value';
+    valueEl.textContent = value;
+    tile.appendChild(labelEl);
+    tile.appendChild(valueEl);
+    setSwapTileOpen(tile, isOpen);
+    return tile;
+  }
+
+  function setSwapTileOpen(tile, isOpen) {
+    tile.setAttribute('aria-expanded', String(isOpen));
+    tile.querySelector('.summary-tile-label').textContent = 'スワップ ' + (isOpen ? '▲' : '▼');
+  }
+
+  function formatMonthDay(date) {
+    return (date.getMonth() + 1) + '/' + date.getDate();
+  }
+
+  function buildSwapDetail(breakdown, isOpen) {
+    var panel = document.createElement('div');
+    panel.className = 'swap-detail';
+    panel.hidden = !isOpen;
+
+    if (breakdown.items.length === 0) {
+      var empty = document.createElement('p');
+      empty.className = 'empty-note';
+      empty.textContent = 'この期間のスワップはありません。';
+      panel.appendChild(empty);
+      return panel;
+    }
+
+    var title = document.createElement('div');
+    title.className = 'swap-detail-title';
+    title.textContent = 'スワップ明細（' + breakdown.items.length + '件）';
+    panel.appendChild(title);
+
+    var totals = document.createElement('div');
+    totals.className = 'swap-detail-totals';
+    totals.textContent = '受取 ' + formatMoney(breakdown.received) +
+      ' / 支払 ' + formatMoney(breakdown.paid) +
+      ' / 計 ' + formatMoney(breakdown.total);
+    panel.appendChild(totals);
+
+    var list = document.createElement('ul');
+    list.className = 'swap-detail-list';
+    breakdown.items.forEach(function (item) {
+      var li = document.createElement('li');
+      var date = document.createElement('span');
+      date.className = 'swap-detail-date';
+      date.textContent = formatMonthDay(item.date);
+      var trade = document.createElement('span');
+      trade.className = 'swap-detail-trade';
+      trade.textContent = item.pair + ' ' + item.direction + (item.lot === null ? '' : ' ' + item.lot + 'ロット');
+      var amount = document.createElement('span');
+      amount.className = 'swap-detail-amount ' + (item.swap >= 0 ? 'pnl-plus' : 'pnl-minus');
+      amount.textContent = formatMoney(item.swap);
+      li.appendChild(date);
+      li.appendChild(trade);
+      li.appendChild(amount);
+      list.appendChild(li);
+    });
+    panel.appendChild(list);
+    return panel;
+  }
+
+  function renderSummary(container, summary, avgUnit, swap) {
     container.innerHTML = '';
 
     var mainRow = document.createElement('div');
     mainRow.className = 'summary-main-row';
+    var swapTile = buildSwapTile(formatMoney(summary.swapSum), summary.swapSum >= 0, swap.isOpen);
     mainRow.appendChild(buildTile('トレード損益', formatMoney(summary.pnlSum), summary.pnlSum >= 0));
-    mainRow.appendChild(buildTile('スワップ', formatMoney(summary.swapSum), summary.swapSum >= 0));
+    mainRow.appendChild(swapTile);
     mainRow.appendChild(buildTile('合計', formatMoney(summary.total), summary.total >= 0));
     container.appendChild(mainRow);
+
+    var swapDetail = buildSwapDetail(swap.breakdown, swap.isOpen);
+    container.appendChild(swapDetail);
+    swapTile.addEventListener('click', function () {
+      swapDetail.hidden = !swapDetail.hidden;
+      setSwapTileOpen(swapTile, !swapDetail.hidden);
+      swap.onToggle(!swapDetail.hidden);
+    });
 
     var subRow = document.createElement('div');
     subRow.className = 'summary-sub-row';

@@ -23,6 +23,7 @@
       periodKey: 'all',
       dailyMetric: 'pnl',
       avgUnit: 'yen',
+      swapDetailOpen: false,
       dailyChart: null,
       pairDirectionChart: null
     };
@@ -56,11 +57,18 @@
       var summary = FX.summarize(state.trades, period);
       var visibleTrades = tradesForPeriod(state.trades, state.periodKey);
 
-      FX.renderSummary(els.summary, summary, state.avgUnit);
+      var periodValidTrades = FX.filterByPeriod(FX.filterValidTrades(state.trades), period);
+
+      FX.renderSummary(els.summary, summary, state.avgUnit, {
+        breakdown: FX.swapBreakdown(periodValidTrades),
+        isOpen: state.swapDetailOpen,
+        onToggle: function (isOpen) {
+          state.swapDetailOpen = isOpen;
+        }
+      });
 
       var dailyChartData;
       if (state.dailyMetric === 'recent') {
-        var periodValidTrades = FX.filterByPeriod(FX.filterValidTrades(state.trades), period);
         dailyChartData = FX.recentTradesSeries(periodValidTrades, RECENT_TRADES_LIMIT);
       } else {
         dailyChartData = summary.dailyPnl;

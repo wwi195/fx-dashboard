@@ -157,7 +157,35 @@
     });
   }
 
+  // スワップ明細を新しい順に返す。paidは負の値。
+  // 呼び出し側で有効なトレード(amount.ok && exitDateTime.ok)を期間で絞ってから渡すこと。
+  function swapBreakdown(trades) {
+    var items = trades.filter(function (t) {
+      return t.amount.swap !== 0;
+    }).sort(function (a, b) {
+      return b.exitDateTime.date.getTime() - a.exitDateTime.date.getTime();
+    }).map(function (t) {
+      return {
+        date: t.exitDateTime.date,
+        pair: t.pair,
+        direction: t.direction,
+        lot: t.lot,
+        swap: t.amount.swap
+      };
+    });
+
+    var received = 0;
+    var paid = 0;
+    items.forEach(function (item) {
+      if (item.swap > 0) received += item.swap;
+      else paid += item.swap;
+    });
+
+    return { items: items, received: received, paid: paid, total: received + paid };
+  }
+
   return {
+    swapBreakdown: swapBreakdown,
     periodRange: periodRange,
     filterValidTrades: filterValidTrades,
     filterByPeriod: filterByPeriod,

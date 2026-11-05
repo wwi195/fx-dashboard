@@ -182,3 +182,45 @@ T.test('recentTradesSeries: lotがあればpipsを算出する(YEN_PER_PIP_PER_L
     { label: '最新', pnl: 14000, lot: 0.1, pips: 1400 }
   ]);
 });
+
+T.test('swapBreakdown: スワップ0円を除き、決済日時の新しい順に並べる', function () {
+  var trades = [
+    trade('メキシコペソ円', '買い', -9400, 2430, true, new Date(2026, 8, 3, 15, 24, 0), 10),
+    trade('ドル円', '買い', 1000, 0, true, new Date(2026, 9, 1, 10, 0, 0), 5),
+    trade('ドル円', '売り', 25470, -2055, true, new Date(2026, 10, 5, 12, 46, 0), 5)
+  ];
+  var result = FX.swapBreakdown(trades);
+  T.assertEqual(result.items.length, 2);
+  T.assertEqual(result.items[0].pair, 'ドル円');
+  T.assertEqual(result.items[0].direction, '売り');
+  T.assertEqual(result.items[0].lot, 5);
+  T.assertEqual(result.items[0].swap, -2055);
+  T.assertDateEqual(result.items[0].date, new Date(2026, 10, 5, 12, 46, 0));
+  T.assertEqual(result.items[1].pair, 'メキシコペソ円');
+  T.assertEqual(result.items[1].swap, 2430);
+});
+
+T.test('swapBreakdown: 受取・支払・差引の合計を算出する', function () {
+  var trades = [
+    trade('ドル円', '買い', 0, 1000, true, new Date(2026, 8, 1, 10, 0, 0)),
+    trade('ドル円', '買い', 0, 500, true, new Date(2026, 8, 2, 10, 0, 0)),
+    trade('ドル円', '売り', 0, -300, true, new Date(2026, 8, 3, 10, 0, 0))
+  ];
+  var result = FX.swapBreakdown(trades);
+  T.assertEqual(result.received, 1500);
+  T.assertEqual(result.paid, -300);
+  T.assertEqual(result.total, 1200);
+});
+
+T.test('swapBreakdown: 差引合計はsummarizeのswapSumと一致する', function () {
+  var trades = [
+    trade('ドル円', '買い', 100, 700, true, new Date(2026, 8, 1, 10, 0, 0)),
+    trade('ドル円', '売り', -100, -250, true, new Date(2026, 8, 2, 10, 0, 0)),
+    trade('ドル円', '売り', 50, 0, true, new Date(2026, 8, 3, 10, 0, 0))
+  ];
+  T.assertEqual(FX.swapBreakdown(trades).total, FX.summarize(trades, null).swapSum);
+});
+
+T.test('swapBreakdown: スワップがなければ空で合計0', function () {
+  T.assertEqual(FX.swapBreakdown([]), { items: [], received: 0, paid: 0, total: 0 });
+});

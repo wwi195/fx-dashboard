@@ -109,6 +109,62 @@ body {
   margin-top: 4px;
 }
 
+.summary-tile-button {
+  width: 100%;
+  font: inherit;
+  cursor: pointer;
+}
+
+.swap-detail {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.swap-detail .empty-note { margin: 0; }
+
+.swap-detail-title {
+  font-size: 13px;
+  font-weight: bold;
+}
+
+.swap-detail-totals {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.swap-detail-list {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+}
+
+.swap-detail-list li {
+  display: flex;
+  gap: 8px;
+  padding: 6px 0;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.swap-detail-date {
+  flex: 0 0 3.2em;
+  color: var(--text-muted);
+}
+
+.swap-detail-trade {
+  flex: 1;
+  min-width: 0;
+}
+
+.swap-detail-amount {
+  font-weight: bold;
+  white-space: nowrap;
+}
+
 .summary-sub-row {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
