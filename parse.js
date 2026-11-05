@@ -28,7 +28,13 @@
     return { ok: true, pnl: pnl, swap: swap };
   }
 
-  function parseDateTime(raw, fallbackDate) {
+  // 基準日がない場合の年。フォームの記録には送信時刻があるので、通常は使われない。
+  var DEFAULT_YEAR = 2026;
+  // 年なしの日付が基準日よりこれ以上先なら、年またぎとみなして前年にする。
+  // 数日先の打ち間違いを前年扱いにしないよう、半年の幅を取る。
+  var YEAR_ROLLBACK_MS = 180 * 24 * 60 * 60 * 1000;
+
+  function parseDateTime(raw, fallbackDate, referenceDate) {
     if (!raw) return { ok: false, raw: raw };
     var trimmed = String(raw).trim();
     var tokens = trimmed.split(/\s+/);
@@ -49,6 +55,7 @@
     }
 
     var year, month, day;
+    var yearOmitted = false;
     if (datePart) {
       var dateSegs = datePart.split('/');
       if (dateSegs.length === 3) {
@@ -56,7 +63,8 @@
         month = parseInt(dateSegs[1], 10);
         day = parseInt(dateSegs[2], 10);
       } else if (dateSegs.length === 2) {
-        year = 2026;
+        yearOmitted = true;
+        year = referenceDate ? referenceDate.getFullYear() : DEFAULT_YEAR;
         month = parseInt(dateSegs[0], 10);
         day = parseInt(dateSegs[1], 10);
       } else {
@@ -84,7 +92,57 @@
       return { ok: false, raw: raw };
     }
 
-    return { ok: true, date: new Date(year, month - 1, day, hour, minute, second) };
+    var date = new Date(year, month - 1, day, hour, minute, second);
+    if (yearOmitted && referenceDate && date.getTime() - referenceDate.getTime() > YEAR_ROLLBACK_MS) {
+      date = new Date(year - 1, month - 1, day, hour, minute, second);
+    }
+    return { ok: true, date: date };
+  }
+
+  // フォームに記入された日時を読む。時刻だけで送信時刻より後なら前日とみなす。
+  function parseRecordedDateTime(raw, submissionDate, fallbackDate) {
+    var result = parseDateTime(raw, submissionDate || fallbackDate, submissionDate);
+    var timeOnly = /^\d{1,2}:\d{1,2}(:\d{1,2})?$/.test(String(raw || '').trim());
+    if (result.ok && timeOnly && submissionDate && result.date.getTime() > submissionDate.getTime()) {
+      var d = result.date;
+      return {
+        ok: true,
+        date: new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1, d.getHours(), d.getMinutes(), d.getSeconds())
+      };
+    }
+    return result;
+  }
+
+  function columnReader(headers) {
+    var names = (headers || []).map(function (h) { return String(h).trim(); });
+    return function (row, name) {
+      var idx = names.indexOf(name);
+      return idx === -1 ? '' : String(row[idx] || '').trim();
+    };
+  }
+
+  // スワップ欄の値を金額に反映する。金額欄にもスワップがあれば、二重計上を避けて要確認にする。
+  function applySwapColumn(amount, amountRaw, swapRaw) {
+    if (swapRaw === '') return amount;
+    var cleaned = swapRaw.replace(/\\/g, '');
+    if (!/^-?\d+(\.\d+)?$/.test(cleaned) || !amount.ok || amount.swap !== 0) {
+      return { ok: false, raw: amountRaw + ' / スワップ欄: ' + swapRaw };
+    }
+    return { ok: true, pnl: amount.pnl, swap: parseFloat(cleaned) };
+  }
+
+  var PRICE_PER_PIP = 0.01;
+
+  // エントリー価格と方向、pipsから利確(tp)または損切(sl)の価格を計算する。計算できなければnull。
+  function plannedPrice(entryPrice, direction, pips, kind) {
+    var isNumber = /^\d+(\.\d+)?$/;
+    var price = String(entryPrice || '').trim();
+    var distance = String(pips || '').trim();
+    if (!isNumber.test(price) || !isNumber.test(distance)) return null;
+    if (direction !== '買い' && direction !== '売り') return null;
+    var towardProfit = (direction === '買い') === (kind === 'tp');
+    var delta = parseFloat(distance) * PRICE_PER_PIP * (towardProfit ? 1 : -1);
+    return Number((parseFloat(price) + delta).toFixed(3));
   }
 
   function parseCsv(text) {
@@ -154,7 +212,9 @@
     return rows;
   }
 
-  function normalizeEntry(rows) {
+  // 2026-11のフォーム改造で増えた列は、位置ではなく見出し名で読む。
+  function normalizeEntry(rows, headers) {
+    var read = columnReader(headers);
     return rows.map(function (row) {
       var ts = parseDateTime(row[0], null);
       var lotNum = parseFloat(row[3]);
@@ -167,19 +227,27 @@
         entryPrice: row[5] || '',
         tpPrice: row[6] || '',
         slPrice: row[7] || '',
-        invalidateCondition: row[8] || ''
+        invalidateCondition: row[8] || '',
+        orderType: read(row, '注文方法'),
+        tpPips: read(row, '利確pips'),
+        slPips: read(row, '損切pips'),
+        holdUntil: read(row, 'いつまで持つ？'),
+        exitPlan: read(row, 'OCO以外で動くならどんなとき？')
       };
     });
   }
 
-  function normalizeExit(rows) {
+  function normalizeExit(rows, headers) {
+    var read = columnReader(headers);
     return rows.map(function (row) {
       var submissionTs = parseDateTime(row[0], null);
       var submissionDate = submissionTs.ok ? submissionTs.date : null;
 
-      var entryDt = parseDateTime(row[4], submissionDate);
-      var entryFallbackDate = entryDt.ok ? entryDt.date : submissionDate;
-      var exitDt = parseDateTime(row[5], entryFallbackDate);
+      var entryDt = parseRecordedDateTime(row[4], submissionDate, null);
+      var exitBlank = String(row[5] || '').trim() === '';
+      var exitDt = exitBlank && submissionDate
+        ? { ok: true, date: submissionDate }
+        : parseRecordedDateTime(row[5], submissionDate, entryDt.ok ? entryDt.date : null);
 
       if (entryDt.ok && exitDt.ok && exitDt.date.getTime() < entryDt.date.getTime()) {
         exitDt = { ok: true, date: new Date(exitDt.date.getTime() + 24 * 60 * 60 * 1000) };
@@ -194,7 +262,7 @@
         lot: isNaN(lotNum) ? null : lotNum,
         entryDateTime: entryDt,
         exitDateTime: exitDt,
-        amount: parseAmount(row[6]),
+        amount: applySwapColumn(parseAmount(row[6]), row[6], read(row, 'スワップ(円)')),
         ocoFollowed: ocoRaw === 'YES' ? true : (ocoRaw === 'NO' ? false : null),
         ocoReason: row[8] || '',
         matchedScenario: row[9] || ''
@@ -206,6 +274,7 @@
     parseAmount: parseAmount,
     parseDateTime: parseDateTime,
     parseCsv: parseCsv,
+    plannedPrice: plannedPrice,
     normalizeEntry: normalizeEntry,
     normalizeExit: normalizeExit
   };

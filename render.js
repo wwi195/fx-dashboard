@@ -244,6 +244,29 @@
     container.appendChild(row);
   }
 
+  function formatPlannedTarget(entry, pips, kind) {
+    var sign = kind === 'tp' ? '+' : '-';
+    var unit = /^\d+(\.\d+)?$/.test(pips) ? sign + pips + 'pips' : pips;
+    var price = FX.plannedPrice(entry.entryPrice, entry.direction, pips, kind);
+    return price === null ? unit : unit + '（' + price + '）';
+  }
+
+  function appendEntryDetails(details, entry) {
+    appendDetailRow(details, 'エントリー価格', entry.entryPrice);
+    if (entry.orderType) appendDetailRow(details, '注文方法', entry.orderType);
+
+    if (entry.tpPips) appendDetailRow(details, '利確', formatPlannedTarget(entry, entry.tpPips, 'tp'));
+    else if (entry.tpPrice) appendDetailRow(details, '利確価格', entry.tpPrice);
+    if (entry.slPips) appendDetailRow(details, '損切', formatPlannedTarget(entry, entry.slPips, 'sl'));
+    else if (entry.slPrice) appendDetailRow(details, '損切価格', entry.slPrice);
+
+    appendDetailRow(details, '根拠', entry.rationale);
+
+    if (entry.holdUntil) appendDetailRow(details, 'いつまで持つ？', entry.holdUntil);
+    if (entry.exitPlan) appendDetailRow(details, 'OCO以外で動くならどんなとき？', entry.exitPlan);
+    if (entry.invalidateCondition) appendDetailRow(details, 'シナリオが成立しない条件', entry.invalidateCondition);
+  }
+
   function buildTradeCard(trade) {
     var card = document.createElement('div');
     card.className = 'trade-card';
@@ -294,11 +317,7 @@
     details.hidden = true;
 
     if (trade.entry) {
-      appendDetailRow(details, 'エントリー価格', trade.entry.entryPrice);
-      appendDetailRow(details, '利確価格', trade.entry.tpPrice);
-      appendDetailRow(details, '損切価格', trade.entry.slPrice);
-      appendDetailRow(details, '根拠', trade.entry.rationale);
-      appendDetailRow(details, 'シナリオが成立しない条件', trade.entry.invalidateCondition);
+      appendEntryDetails(details, trade.entry);
     } else {
       appendDetailRow(details, 'エントリー記録', 'なし');
     }

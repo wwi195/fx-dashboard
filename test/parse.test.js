@@ -182,3 +182,120 @@ T.test('parseAmount: 誤読のおそれがない表記ゆれは読み取る', fu
     T.assertEqual(FX.parseAmount(c[1]), { ok: false, raw: c[1] });
   });
 });
+
+T.test('parseDateTime: 年なしの日付は基準日の年を使う', function () {
+  var ref = new Date(2027, 0, 5, 10, 0, 0);
+  T.assertDateEqual(FX.parseDateTime('1/5 9:50', null, ref).date, new Date(2027, 0, 5, 9, 50, 0));
+});
+
+T.test('parseDateTime: 年またぎは前年とみなす', function () {
+  var ref = new Date(2027, 0, 2, 10, 0, 0);
+  T.assertDateEqual(FX.parseDateTime('12/31 23:00', null, ref).date, new Date(2026, 11, 31, 23, 0, 0));
+});
+
+T.test('parseDateTime: 数日先の日付は打ち間違いでも前年にしない', function () {
+  var ref = new Date(2026, 8, 3, 10, 0, 0);
+  T.assertDateEqual(FX.parseDateTime('9/30 10:00', null, ref).date, new Date(2026, 8, 30, 10, 0, 0));
+});
+
+var EXIT_HEADERS_NEW = ['タイムスタンプ', '通貨ペア', '方向(エントリー時)', 'ロット', 'エントリー日時', '決済日時', '結果金額(円)', 'OCO通り決済か', ' NOの場合理由', '①の根拠通りだったか', 'スワップ(円)'];
+
+function exitRow(exitAt, amount, swap) {
+  return ['2027/01/05 12:00:00', 'ドル円', '売り', '5', '1/5 10:00', exitAt, amount, 'NO', '恐怖決済', 'yes', swap];
+}
+
+T.test('normalizeExit: スワップ欄を読み取る(マイナス含む)', function () {
+  var r = FX.normalizeExit([exitRow('1/5 11:00', '25470', '-2055')], EXIT_HEADERS_NEW)[0];
+  T.assertEqual(r.amount, { ok: true, pnl: 25470, swap: -2055 });
+  T.assertEqual(r.ocoReason, '恐怖決済');
+});
+
+T.test('normalizeExit: スワップ欄が空なら0円', function () {
+  var r = FX.normalizeExit([exitRow('1/5 11:00', '25470', '')], EXIT_HEADERS_NEW)[0];
+  T.assertEqual(r.amount, { ok: true, pnl: 25470, swap: 0 });
+});
+
+T.test('normalizeExit: 新しい列がない過去の形式は金額欄のスワップを読む', function () {
+  var headers = EXIT_HEADERS_NEW.slice(0, 10);
+  var r = FX.normalizeExit([exitRow('1/5 11:00', '25470+スワップ-2055').slice(0, 10)], headers)[0];
+  T.assertEqual(r.amount, { ok: true, pnl: 25470, swap: -2055 });
+});
+
+T.test('normalizeExit: 新しい列が空の過去の行は金額欄のスワップを読む', function () {
+  var r = FX.normalizeExit([exitRow('1/5 11:00', '25470+スワップ545', '')], EXIT_HEADERS_NEW)[0];
+  T.assertEqual(r.amount, { ok: true, pnl: 25470, swap: 545 });
+});
+
+T.test('normalizeExit: 金額欄とスワップ欄の両方にスワップがあれば要確認', function () {
+  var r = FX.normalizeExit([exitRow('1/5 11:00', '25470+スワップ545', '545')], EXIT_HEADERS_NEW)[0];
+  T.assertEqual(r.amount.ok, false);
+  T.assertEqual(r.amount.raw, '25470+スワップ545 / スワップ欄: 545');
+});
+
+T.test('normalizeExit: スワップ欄が数字でなければ要確認', function () {
+  var r = FX.normalizeExit([exitRow('1/5 11:00', '25470', 'なし')], EXIT_HEADERS_NEW)[0];
+  T.assertEqual(r.amount.ok, false);
+});
+
+T.test('normalizeExit: 決済日時が空なら送信時刻を使う', function () {
+  var r = FX.normalizeExit([exitRow('', '100', '')], EXIT_HEADERS_NEW)[0];
+  T.assertTrue(r.exitDateTime.ok);
+  T.assertDateEqual(r.exitDateTime.date, new Date(2027, 0, 5, 12, 0, 0));
+});
+
+T.test('normalizeExit: 時刻だけの決済日時は送信日を使う', function () {
+  var row = exitRow('11:30', '100', '');
+  row[4] = '1/3 10:00';
+  var r = FX.normalizeExit([row], EXIT_HEADERS_NEW)[0];
+  T.assertDateEqual(r.exitDateTime.date, new Date(2027, 0, 5, 11, 30, 0));
+});
+
+T.test('normalizeExit: 時刻だけで送信時刻より後なら前日とみなす', function () {
+  var row = exitRow('23:50', '100', '');
+  row[4] = '1/3 10:00';
+  var r = FX.normalizeExit([row], EXIT_HEADERS_NEW)[0];
+  T.assertDateEqual(r.exitDateTime.date, new Date(2027, 0, 4, 23, 50, 0));
+});
+
+T.test('normalizeExit: 年なしの日時は送信時刻の年で読む', function () {
+  var r = FX.normalizeExit([exitRow('1/5 11:00', '100', '')], EXIT_HEADERS_NEW)[0];
+  T.assertDateEqual(r.entryDateTime.date, new Date(2027, 0, 5, 10, 0, 0));
+  T.assertDateEqual(r.exitDateTime.date, new Date(2027, 0, 5, 11, 0, 0));
+});
+
+var ENTRY_HEADERS_NEW = ['タイムスタンプ', '通貨ペア', '方向', 'ロット数', '根拠', 'エントリー価格', '利確価格(+30pips以上目安)', '損切価格(-20pips以下目安)', 'シナリオが成立しない条件（有効期限含む）', '注文方法', '利確pips', '損切pips', 'いつまで持つ？', 'OCO以外で動くならどんなとき？'];
+
+T.test('normalizeEntry: 新しい列を見出し名で読み取る', function () {
+  var row = ['2027/01/05 10:00:00', 'ドル円', '買い', '5', '根拠', '158.2', '', '', '', 'IFO', '50', '20', '当日中', '指標で撤退'];
+  var r = FX.normalizeEntry([row], ENTRY_HEADERS_NEW)[0];
+  T.assertEqual(r.orderType, 'IFO');
+  T.assertEqual(r.tpPips, '50');
+  T.assertEqual(r.slPips, '20');
+  T.assertEqual(r.holdUntil, '当日中');
+  T.assertEqual(r.exitPlan, '指標で撤退');
+});
+
+T.test('normalizeEntry: 新しい列がない過去の形式は空文字になる', function () {
+  var row = ['2026/06/19 23:19:28', 'ドル円', '売り', '2', '根拠', '161.38', '160.5', '161.7', '本日中'];
+  var r = FX.normalizeEntry([row], ENTRY_HEADERS_NEW.slice(0, 9))[0];
+  T.assertEqual(r.tpPrice, '160.5');
+  T.assertEqual(r.invalidateCondition, '本日中');
+  T.assertEqual(r.tpPips, '');
+  T.assertEqual(r.holdUntil, '');
+});
+
+T.test('plannedPrice: 買いの利確は上、損切は下', function () {
+  T.assertEqual(FX.plannedPrice('158.2', '買い', '50', 'tp'), 158.7);
+  T.assertEqual(FX.plannedPrice('158.2', '買い', '20', 'sl'), 158);
+});
+
+T.test('plannedPrice: 売りの利確は下、損切は上', function () {
+  T.assertEqual(FX.plannedPrice('158.2', '売り', '50', 'tp'), 157.7);
+  T.assertEqual(FX.plannedPrice('158.2', '売り', '20', 'sl'), 158.4);
+});
+
+T.test('plannedPrice: 価格やpipsが数字でなければnull', function () {
+  T.assertEqual(FX.plannedPrice('161.38(IFO)', '買い', '50', 'tp'), null);
+  T.assertEqual(FX.plannedPrice('158.2', '買い', '目安', 'tp'), null);
+  T.assertEqual(FX.plannedPrice('158.2', '不明', '50', 'tp'), null);
+});

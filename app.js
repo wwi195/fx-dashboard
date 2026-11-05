@@ -140,10 +140,10 @@
 
     Promise.all([fetchCsv(FX_CONFIG.CSV_ENTRY), fetchCsv(FX_CONFIG.CSV_EXIT)])
       .then(function (texts) {
-        var entryRows = FX.parseCsv(texts[0]).slice(1);
-        var exitRows = FX.parseCsv(texts[1]).slice(1);
-        var entries = FX.normalizeEntry(entryRows);
-        var exits = FX.normalizeExit(exitRows);
+        var entryCsv = FX.parseCsv(texts[0]);
+        var exitCsv = FX.parseCsv(texts[1]);
+        var entries = FX.normalizeEntry(entryCsv.slice(1), entryCsv[0]);
+        var exits = FX.normalizeExit(exitCsv.slice(1), exitCsv[0]);
         var linked = FX.linkTrades(entries, exits);
         state.trades = linked.trades;
         rerender();
