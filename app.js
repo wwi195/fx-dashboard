@@ -11,6 +11,7 @@
       periodFilter: document.getElementById('period-filter'),
       summary: document.getElementById('summary-tiles'),
       dailyChartTabs: document.getElementById('daily-chart-tabs'),
+      pairMetricTabs: document.getElementById('pair-metric-tabs'),
       avgUnitSelect: document.getElementById('avg-unit-select'),
       dailyCanvas: document.getElementById('daily-chart'),
       pairDirectionCanvas: document.getElementById('pair-direction-chart'),
@@ -22,6 +23,7 @@
       trades: [],
       periodKey: 'all',
       dailyMetric: 'pnl',
+      pairMetric: 'pnl',
       avgUnit: 'yen',
       swapDetailOpen: false,
       dailyChart: null,
@@ -70,12 +72,14 @@
       var dailyChartData;
       if (state.dailyMetric === 'recent') {
         dailyChartData = FX.recentTradesSeries(periodValidTrades, RECENT_TRADES_LIMIT);
+      } else if (state.dailyMetric === 'cumulative') {
+        dailyChartData = summary.cumulative;
       } else {
         dailyChartData = summary.dailyPnl;
       }
       state.dailyChart = FX.renderDailyChart(els.dailyCanvas, dailyChartData, state.dailyChart, state.dailyMetric);
       state.pairDirectionChart = FX.renderPairDirection(
-        els.pairDirectionCanvas, els.pairDirectionList, summary.byPairDirection, state.pairDirectionChart
+        els.pairDirectionCanvas, els.pairDirectionList, summary.byPairDirection, state.pairDirectionChart, state.pairMetric
       );
       FX.renderTradeList(els.tradeList, visibleTrades);
     }
@@ -100,6 +104,16 @@
       rerender();
     }
 
+    function onPairMetricClick(event) {
+      var btn = event.target.closest('[data-pair-metric]');
+      if (!btn) return;
+      state.pairMetric = btn.getAttribute('data-pair-metric');
+      Array.prototype.forEach.call(els.pairMetricTabs.querySelectorAll('[data-pair-metric]'), function (b) {
+        b.classList.toggle('active', b === btn);
+      });
+      rerender();
+    }
+
     function onAvgUnitChange() {
       state.avgUnit = els.avgUnitSelect.value;
       rerender();
@@ -114,6 +128,7 @@
 
     els.periodFilter.addEventListener('click', onPeriodClick);
     els.dailyChartTabs.addEventListener('click', onDailyMetricClick);
+    els.pairMetricTabs.addEventListener('click', onPairMetricClick);
     els.avgUnitSelect.addEventListener('change', onAvgUnitChange);
 
     if (!window.FX_CONFIG || !FX_CONFIG.CSV_ENTRY || !FX_CONFIG.CSV_EXIT) {

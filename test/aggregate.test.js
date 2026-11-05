@@ -97,9 +97,9 @@ T.test('summarize: 5件フィクスチャで全指標を検証', function () {
 
   var byPd = {};
   s.byPairDirection.forEach(function (d) { byPd[d.pair + '|' + d.direction] = d; });
-  T.assertEqual(byPd['ドル円|買い'], { pair: 'ドル円', direction: '買い', pnlSum: 500, count: 2, winRate: 0.5 });
-  T.assertEqual(byPd['ドル円|売り'], { pair: 'ドル円', direction: '売り', pnlSum: 2000, count: 1, winRate: 1 });
-  T.assertEqual(byPd['メキシコペソ円|買い'], { pair: 'メキシコペソ円', direction: '買い', pnlSum: -1000, count: 1, winRate: 0 });
+  T.assertEqual(byPd['ドル円|買い'], { pair: 'ドル円', direction: '買い', pnlSum: 500, swapSum: 0, totalSum: 500, count: 2, winRate: 0.5 });
+  T.assertEqual(byPd['ドル円|売り'], { pair: 'ドル円', direction: '売り', pnlSum: 2000, swapSum: 0, totalSum: 2000, count: 1, winRate: 1 });
+  T.assertEqual(byPd['メキシコペソ円|買い'], { pair: 'メキシコペソ円', direction: '買い', pnlSum: -1000, swapSum: 300, totalSum: -700, count: 1, winRate: 0 });
 });
 
 T.test('summarize: トレード0件ならwinRate/avgWin/avgLoss/rr/maxWin/maxLossはnull', function () {
@@ -223,4 +223,69 @@ T.test('swapBreakdown: 差引合計はsummarizeのswapSumと一致する', funct
 
 T.test('swapBreakdown: スワップがなければ空で合計0', function () {
   T.assertEqual(FX.swapBreakdown([]), { items: [], received: 0, paid: 0, total: 0 });
+});
+
+T.test('summarize: cumulativeは決済日ごとの累積を損益のみ/スワップ込みで返す', function () {
+  var s = FX.summarize(buildFixture(), null);
+  T.assertEqual(s.cumulative, [
+    { date: '2026-09-01', pnl: 500, total: 500 },
+    { date: '2026-09-02', pnl: 2500, total: 2500 },
+    { date: '2026-09-03', pnl: 1500, total: 1800 }
+  ]);
+});
+
+T.test('summarize: cumulativeは入力順に関わらず決済日時順に積み上げる', function () {
+  var trades = [
+    trade('ドル円', '買い', -100, 0, true, new Date(2026, 8, 2, 10, 0, 0)),
+    trade('ドル円', '買い', 300, 50, true, new Date(2026, 8, 1, 10, 0, 0))
+  ];
+  T.assertEqual(FX.summarize(trades, null).cumulative, [
+    { date: '2026-09-01', pnl: 300, total: 350 },
+    { date: '2026-09-02', pnl: 200, total: 250 }
+  ]);
+});
+
+T.test('summarize: maxDrawdownはスワップ込み累積の最高値からの最大下落幅', function () {
+  // 累積(スワップ込み): 1000 → 1600 → 900 → 1200 → 700。最高値1600から700で900下落。
+  var trades = [
+    trade('ドル円', '買い', 1000, 0, true, new Date(2026, 8, 1, 10, 0, 0)),
+    trade('ドル円', '買い', 500, 100, true, new Date(2026, 8, 2, 10, 0, 0)),
+    trade('ドル円', '買い', -700, 0, true, new Date(2026, 8, 3, 10, 0, 0)),
+    trade('ドル円', '買い', 300, 0, true, new Date(2026, 8, 4, 10, 0, 0)),
+    trade('ドル円', '買い', -500, 0, true, new Date(2026, 8, 5, 10, 0, 0))
+  ];
+  T.assertEqual(FX.summarize(trades, null).maxDrawdown, 900);
+});
+
+T.test('summarize: maxDrawdownは同じ日の中の下落も数える', function () {
+  // 日次の終値だけなら 1000 → 900 だが、日中に-500まで下がっている。
+  var trades = [
+    trade('ドル円', '買い', 1000, 0, true, new Date(2026, 8, 1, 10, 0, 0)),
+    trade('ドル円', '買い', -1500, 0, true, new Date(2026, 8, 2, 10, 0, 0)),
+    trade('ドル円', '買い', 1400, 0, true, new Date(2026, 8, 2, 11, 0, 0))
+  ];
+  T.assertEqual(FX.summarize(trades, null).maxDrawdown, 1500);
+});
+
+T.test('summarize: 最初から負けた場合は0円からの下落を数える', function () {
+  var trades = [trade('ドル円', '買い', -300, 0, true, new Date(2026, 8, 1, 10, 0, 0))];
+  T.assertEqual(FX.summarize(trades, null).maxDrawdown, 300);
+});
+
+T.test('summarize: 下落がなければmaxDrawdownは0、トレード0件ならnull', function () {
+  var trades = [trade('ドル円', '買い', 300, 0, true, new Date(2026, 8, 1, 10, 0, 0))];
+  T.assertEqual(FX.summarize(trades, null).maxDrawdown, 0);
+  T.assertEqual(FX.summarize([], null).maxDrawdown, null);
+  T.assertEqual(FX.summarize([], null).cumulative, []);
+});
+
+T.test('summarize: 累積とmaxDrawdownは期間開始時を0円として計算する', function () {
+  var trades = [
+    trade('ドル円', '買い', 5000, 0, true, new Date(2026, 8, 1, 10, 0, 0)),
+    trade('ドル円', '買い', -200, 0, true, new Date(2026, 8, 10, 10, 0, 0))
+  ];
+  var period = { start: new Date(2026, 8, 5, 0, 0, 0), end: new Date(2026, 8, 30, 0, 0, 0) };
+  var s = FX.summarize(trades, period);
+  T.assertEqual(s.cumulative, [{ date: '2026-09-10', pnl: -200, total: -200 }]);
+  T.assertEqual(s.maxDrawdown, 200);
 });

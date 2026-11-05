@@ -241,6 +241,10 @@ body {
   font-size: 13px;
 }
 
+.pair-direction-list li { gap: 12px; }
+.pair-direction-list li span:first-child { flex-shrink: 0; }
+.pair-direction-list li span:last-child { text-align: right; }
+
 .trade-list-section {
   padding: 16px;
 }

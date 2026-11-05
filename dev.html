@@ -36,12 +36,17 @@
       <div id="daily-chart-tabs" class="chart-tabs">
         <button type="button" class="active" data-daily-metric="pnl">日別</button>
         <button type="button" data-daily-metric="recent">直近20件</button>
+        <button type="button" data-daily-metric="cumulative">累積</button>
       </div>
       <canvas id="daily-chart"></canvas>
     </section>
 
     <section class="chart-section">
       <h2>通貨ペア × 方向</h2>
+      <div id="pair-metric-tabs" class="chart-tabs">
+        <button type="button" class="active" data-pair-metric="pnl">損益</button>
+        <button type="button" data-pair-metric="total">スワップ込み</button>
+      </div>
       <canvas id="pair-direction-chart"></canvas>
       <ul id="pair-direction-list" class="pair-direction-list"></ul>
     </section>

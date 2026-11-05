@@ -35,6 +35,11 @@
     return formatMoney(negate ? -yenValue : yenValue);
   }
 
+  function formatDrawdown(value) {
+    if (value === null) return '-';
+    return value > 0 ? formatMoney(-value) : '¥0';
+  }
+
   function formatDateTime(date) {
     var m = date.getMonth() + 1;
     var d = date.getDate();
@@ -183,27 +188,29 @@
     subRow.appendChild(buildSubStat('RR比', formatRR(summary.rr)));
     subRow.appendChild(buildSubStat('最大勝ち', summary.maxWin === null ? '-' : formatMoney(summary.maxWin)));
     subRow.appendChild(buildSubStat('最大負け', summary.maxLoss === null ? '-' : formatMoney(summary.maxLoss)));
+    subRow.appendChild(buildSubStat('最大ドローダウン', formatDrawdown(summary.maxDrawdown)));
     container.appendChild(subRow);
 
     if (summary.excludedCount > 0) {
       var warn = document.createElement('p');
       warn.className = 'excluded-warn';
-      warn.textContent = '要確認: ' + summary.excludedCount + '件（金額または日時が読み取れませんでした）';
+      warn.textContent = '要確認: ' + summary.excludedCount + '件（金額または日時の書き方を確認してください。集計から除外しています）';
       container.appendChild(warn);
     }
   }
 
   function renderDailyChart(canvas, data, prevChart, metric) {
     if (prevChart) prevChart.destroy();
-    var config = metric === 'recent'
-      ? FX.buildRecentTradesChartConfig(data)
-      : FX.buildDailyPnlChartConfig(data);
+    var config;
+    if (metric === 'recent') config = FX.buildRecentTradesChartConfig(data);
+    else if (metric === 'cumulative') config = FX.buildCumulativeChartConfig(data);
+    else config = FX.buildDailyPnlChartConfig(data);
     return new Chart(canvas.getContext('2d'), config);
   }
 
-  function renderPairDirection(canvas, listEl, byPairDirection, prevChart) {
+  function renderPairDirection(canvas, listEl, byPairDirection, prevChart, metric) {
     if (prevChart) prevChart.destroy();
-    var config = FX.buildPairDirectionChartConfig(byPairDirection);
+    var config = FX.buildPairDirectionChartConfig(byPairDirection, metric);
     var chart = new Chart(canvas.getContext('2d'), config);
 
     listEl.innerHTML = '';
@@ -212,7 +219,9 @@
       var label = document.createElement('span');
       label.textContent = d.pair + ' ' + d.direction;
       var stats = document.createElement('span');
-      stats.textContent = formatMoney(d.pnlSum) + '（' + d.count + '件 / 勝率' + formatPercent(d.winRate) + '）';
+      stats.textContent = metric === 'total'
+        ? formatMoney(d.totalSum) + '（うちスワップ' + formatMoney(d.swapSum) + ' / ' + d.count + '件 / 勝率' + formatPercent(d.winRate) + '）'
+        : formatMoney(d.pnlSum) + '（' + d.count + '件 / 勝率' + formatPercent(d.winRate) + '）';
       li.appendChild(label);
       li.appendChild(stats);
       listEl.appendChild(li);

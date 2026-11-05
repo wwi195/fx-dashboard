@@ -56,6 +56,37 @@
   // 1ロット・1pipsあたりの円額。ユーザーの取引ルールに基づく固定値。
   var YEN_PER_PIP_PER_LOT = 100;
 
+  // 期間開始時を0円として、決済日時順に累積と最大ドローダウンを計算する。
+  // 最大ドローダウンはスワップ込みの累積で、日中の下落も含めるためトレード単位で求める。
+  function cumulativeStats(trades) {
+    var sorted = trades.slice().sort(function (a, b) {
+      return a.exitDateTime.date.getTime() - b.exitDateTime.date.getTime();
+    });
+    var points = [];
+    var pnl = 0;
+    var total = 0;
+    var peak = 0;
+    var maxDrawdown = 0;
+
+    sorted.forEach(function (t) {
+      pnl += t.amount.pnl;
+      total += t.amount.pnl + t.amount.swap;
+      peak = Math.max(peak, total);
+      maxDrawdown = Math.max(maxDrawdown, peak - total);
+
+      var date = formatDateKey(t.exitDateTime.date);
+      var last = points[points.length - 1];
+      if (last && last.date === date) {
+        last.pnl = pnl;
+        last.total = total;
+      } else {
+        points.push({ date: date, pnl: pnl, total: total });
+      }
+    });
+
+    return { points: points, maxDrawdown: sorted.length > 0 ? maxDrawdown : null };
+  }
+
   function summarize(trades, period) {
     var valid = filterValidTrades(trades);
     var excludedCount = trades.length - valid.length;
@@ -91,9 +122,10 @@
 
       var pdKey = t.pair + '|' + t.direction;
       if (!pairDirMap[pdKey]) {
-        pairDirMap[pdKey] = { pair: t.pair, direction: t.direction, pnlSum: 0, count: 0, wins: 0 };
+        pairDirMap[pdKey] = { pair: t.pair, direction: t.direction, pnlSum: 0, swapSum: 0, count: 0, wins: 0 };
       }
       pairDirMap[pdKey].pnlSum += pnl;
+      pairDirMap[pdKey].swapSum += swap;
       pairDirMap[pdKey].count += 1;
       if (pnl > 0) pairDirMap[pdKey].wins += 1;
     });
@@ -117,12 +149,18 @@
         pair: e.pair,
         direction: e.direction,
         pnlSum: e.pnlSum,
+        swapSum: e.swapSum,
+        totalSum: e.pnlSum + e.swapSum,
         count: e.count,
         winRate: e.count > 0 ? e.wins / e.count : null
       };
     });
 
+    var cumulative = cumulativeStats(inRange);
+
     return {
+      cumulative: cumulative.points,
+      maxDrawdown: cumulative.maxDrawdown,
       pnlSum: pnlSum,
       swapSum: swapSum,
       total: pnlSum + swapSum,

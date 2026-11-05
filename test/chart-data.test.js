@@ -80,3 +80,34 @@ T.test('buildPairDirectionChartConfig: labels/data/色を組み立てる', funct
   T.assertEqual(config.data.datasets[0].backgroundColor, ['#2f9e59', '#c0392b']);
   T.assertEqual(config.options.indexAxis, 'y');
 });
+
+T.test('buildPairDirectionChartConfig: totalならスワップ込みの値と色を使う', function () {
+  var byPairDirection = [
+    { pair: 'メキシコペソ円', direction: '買い', pnlSum: -1000, swapSum: 1500, totalSum: 500, count: 1, winRate: 0 }
+  ];
+  var config = FX.buildPairDirectionChartConfig(byPairDirection, 'total');
+  T.assertEqual(config.data.datasets[0].data, [500]);
+  T.assertEqual(config.data.datasets[0].backgroundColor, ['#2f9e59']);
+  var pnlConfig = FX.buildPairDirectionChartConfig(byPairDirection, 'pnl');
+  T.assertEqual(pnlConfig.data.datasets[0].data, [-1000]);
+});
+
+T.test('buildCumulativeChartConfig: スワップ込みと損益のみの2本の線を組み立てる', function () {
+  var points = [
+    { date: '2026-09-01', pnl: 500, total: 500 },
+    { date: '2026-09-02', pnl: 300, total: 800 }
+  ];
+  var config = FX.buildCumulativeChartConfig(points);
+  T.assertEqual(config.type, 'line');
+  T.assertEqual(config.data.labels, ['2026-09-01', '2026-09-02']);
+  T.assertEqual(config.data.datasets[0].label, 'スワップ込み');
+  T.assertEqual(config.data.datasets[0].data, [500, 800]);
+  T.assertEqual(config.data.datasets[1].label, 'トレード損益のみ');
+  T.assertEqual(config.data.datasets[1].data, [500, 300]);
+  T.assertEqual(config.options.plugins.legend.display, true);
+  var tickFn = config.options.scales.x.ticks.callback;
+  T.assertEqual(tickFn(null, 0), '2026/9/1');
+  T.assertEqual(tickFn(null, 1), '9/2');
+  var labelFn = config.options.plugins.tooltip.callbacks.label;
+  T.assertEqual(labelFn({ dataset: { label: 'スワップ込み' }, parsed: { y: 800 } }), 'スワップ込み: ¥+800');
+});

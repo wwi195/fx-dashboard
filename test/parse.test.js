@@ -152,3 +152,33 @@ T.test('normalizeExit: YES/NO以外のOCO欄はnull', function () {
   var result = FX.normalizeExit(rows);
   T.assertEqual(result[0].ocoFollowed, null);
 });
+
+T.test('parseAmount: マイナススワップを読み取る', function () {
+  T.assertEqual(FX.parseAmount('25470+スワップ-2055'), { ok: true, pnl: 25470, swap: -2055 });
+  T.assertEqual(FX.parseAmount('-6100(スワップ-4940)'), { ok: true, pnl: -6100, swap: -4940 });
+});
+
+T.test('parseAmount: 誤読のおそれがない表記ゆれは読み取る', function () {
+  T.assertEqual(FX.parseAmount('25470＋スワップ545'), { ok: true, pnl: 25470, swap: 545 });
+  T.assertEqual(FX.parseAmount('-6100（スワップ4940）'), { ok: true, pnl: -6100, swap: 4940 });
+  T.assertEqual(FX.parseAmount('25470 + スワップ 545'), { ok: true, pnl: 25470, swap: 545 });
+  T.assertEqual(FX.parseAmount('25470円'), { ok: true, pnl: 25470, swap: 0 });
+  T.assertEqual(FX.parseAmount('\-6100'), { ok: true, pnl: -6100, swap: 0 });
+});
+
+[
+  ['-とスワップが離れている', '25470-スワップ2055'],
+  ['-の後に空白', '25470 - 2055'],
+  ['全角マイナス', '25470+スワップ−2055'],
+  ['長音記号', '25470+スワップー2055'],
+  ['三角', '25470+スワップ▲2055'],
+  ['「マイナス」の文字', '25470+スワップマイナス2055'],
+  ['桁区切りカンマ', '25,470'],
+  ['全角数字', '25470+スワップ２０５５'],
+  ['スワップ以外の項目', '25470+手数料500'],
+  ['スワップの金額がない', '25470+スワップ']
+].forEach(function (c) {
+  T.test('parseAmount: 紛らわしい記入は要確認にする(' + c[0] + ')', function () {
+    T.assertEqual(FX.parseAmount(c[1]), { ok: false, raw: c[1] });
+  });
+});
