@@ -323,3 +323,69 @@ body {
     gap: 16px;
   }
 }
+
+.rule-section {
+  padding: 16px;
+}
+
+.rule-section h2 {
+  font-size: 15px;
+  margin: 0 0 8px;
+}
+
+.rule-comparison {
+  display: grid;
+  gap: 12px;
+}
+
+.rule-block {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.rule-block h3 {
+  font-size: 14px;
+  margin: 0 0 8px;
+}
+
+.rule-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.rule-table th, .rule-table td {
+  padding: 5px 2px;
+  border-bottom: 1px solid var(--border);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.rule-table th {
+  color: var(--text-muted);
+  font-weight: normal;
+  white-space: normal;
+}
+
+.rule-table th:first-child, .rule-table td:first-child { text-align: left; }
+
+.rule-gap {
+  font-size: 13px;
+  font-weight: bold;
+  margin: 8px 0 0;
+}
+
+.rule-note {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin: 4px 0 0;
+}
+
+@media (min-width: 900px) {
+  .rule-comparison {
+    grid-template-columns: 1fr 1fr;
+  }
+}

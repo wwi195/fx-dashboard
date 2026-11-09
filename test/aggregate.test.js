@@ -289,3 +289,69 @@ T.test('summarize: 累積とmaxDrawdownは期間開始時を0円として計算�
   T.assertEqual(s.cumulative, [{ date: '2026-09-10', pnl: -200, total: -200 }]);
   T.assertEqual(s.maxDrawdown, 200);
 });
+
+function ruleTrade(pnl, ocoFollowed, matchedScenario) {
+  return {
+    pair: 'ドル円',
+    direction: '買い',
+    lot: 5,
+    amount: { ok: true, pnl: pnl, swap: 100 },
+    exitDateTime: { ok: true, date: new Date(2026, 9, 1, 10, 0, 0) },
+    ocoFollowed: ocoFollowed,
+    matchedScenario: matchedScenario
+  };
+}
+
+T.test('classifyAnswer: 書き出しでYES/NO/不明を判定する', function () {
+  T.assertEqual(FX.classifyAnswer('YES'), 'YES');
+  T.assertEqual(FX.classifyAnswer('yes。含み益プラスで利確'), 'YES');
+  T.assertEqual(FX.classifyAnswer('ｙｅｓ'), 'YES');
+  T.assertEqual(FX.classifyAnswer('根拠通り　停滞した'), 'YES');
+  T.assertEqual(FX.classifyAnswer('NO。損失拡大を防ぐ'), 'NO');
+  T.assertEqual(FX.classifyAnswer(' no '), 'NO');
+  T.assertEqual(FX.classifyAnswer('不明'), '不明');
+  T.assertEqual(FX.classifyAnswer('none of them'), null);
+  T.assertEqual(FX.classifyAnswer('どちらでもない'), null);
+  T.assertEqual(FX.classifyAnswer(''), null);
+  T.assertEqual(FX.classifyAnswer(undefined), null);
+});
+
+T.test('ruleComparison: 根拠通りの回答ごとに件数・勝率・平均・合計を出す（損益のみ）', function () {
+  var result = FX.ruleComparison([
+    ruleTrade(3000, true, 'YES'),
+    ruleTrade(-1000, true, 'yes。ほぼ通り'),
+    ruleTrade(-2000, false, 'NO'),
+    ruleTrade(500, false, '判断つかない'),
+    ruleTrade(700, null, '不明')
+  ]);
+  T.assertEqual(result.scenario.rows, [
+    { key: 'YES', label: 'YES', count: 2, winRate: 0.5, avgPnl: 1000, pnlSum: 2000 },
+    { key: 'NO', label: 'NO', count: 1, winRate: 0, avgPnl: -2000, pnlSum: -2000 },
+    { key: '不明', label: '不明', count: 1, winRate: 1, avgPnl: 700, pnlSum: 700 },
+    { key: 'other', label: '未分類', count: 1, winRate: 1, avgPnl: 500, pnlSum: 500 }
+  ]);
+  T.assertEqual(result.scenario.gap, 3000);
+});
+
+T.test('ruleComparison: OCO通りはtrue/false/nullで分ける', function () {
+  var result = FX.ruleComparison([
+    ruleTrade(-1500, true, 'YES'),
+    ruleTrade(4000, false, 'YES'),
+    ruleTrade(2000, false, 'NO'),
+    ruleTrade(0, null, 'YES')
+  ]);
+  T.assertEqual(result.oco.rows, [
+    { key: 'YES', label: 'YES', count: 1, winRate: 0, avgPnl: -1500, pnlSum: -1500 },
+    { key: 'NO', label: 'NO', count: 2, winRate: 1, avgPnl: 3000, pnlSum: 6000 },
+    { key: '不明', label: '不明', count: 1, winRate: 0, avgPnl: 0, pnlSum: 0 }
+  ]);
+  T.assertEqual(result.oco.gap, -4500);
+});
+
+T.test('ruleComparison: YESかNOが0件なら差はnull、0件の行は出さない', function () {
+  var result = FX.ruleComparison([ruleTrade(1000, true, 'YES')]);
+  T.assertEqual(result.oco.rows.length, 1);
+  T.assertEqual(result.oco.gap, null);
+  T.assertEqual(result.scenario.gap, null);
+  T.assertEqual(FX.ruleComparison([]).scenario.rows, []);
+});

@@ -16,6 +16,7 @@
       dailyCanvas: document.getElementById('daily-chart'),
       pairDirectionCanvas: document.getElementById('pair-direction-chart'),
       pairDirectionList: document.getElementById('pair-direction-list'),
+      ruleComparison: document.getElementById('rule-comparison'),
       tradeList: document.getElementById('trade-list')
     };
 
@@ -81,6 +82,7 @@
       state.pairDirectionChart = FX.renderPairDirection(
         els.pairDirectionCanvas, els.pairDirectionList, summary.byPairDirection, state.pairDirectionChart, state.pairMetric
       );
+      FX.renderRuleComparison(els.ruleComparison, FX.ruleComparison(periodValidTrades));
       FX.renderTradeList(els.tradeList, visibleTrades);
     }
 

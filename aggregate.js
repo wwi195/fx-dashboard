@@ -222,7 +222,58 @@
     return { items: items, received: received, paid: paid, total: received + paid };
   }
 
+  // 「根拠通りだったか」などの回答を書き出しで判定する。過去の記録は自由記述が多いため。
+  // 判定できなければnullを返す。
+  function classifyAnswer(raw) {
+    var s = String(raw === undefined || raw === null ? '' : raw).normalize('NFKC').trim();
+    if (/^yes/i.test(s) || /^根拠通り/.test(s)) return 'YES';
+    if (/^no(?![a-z])/i.test(s)) return 'NO';
+    if (/^不明/.test(s)) return '不明';
+    return null;
+  }
+
+  var RULE_GROUPS = [
+    { key: 'YES', label: 'YES' },
+    { key: 'NO', label: 'NO' },
+    { key: '不明', label: '不明' },
+    { key: 'other', label: '未分類' }
+  ];
+
+  function compareBy(trades, keyOf) {
+    var map = {};
+    trades.forEach(function (t) {
+      var key = keyOf(t);
+      if (!map[key]) map[key] = { count: 0, wins: 0, pnlSum: 0 };
+      map[key].count += 1;
+      map[key].pnlSum += t.amount.pnl;
+      if (t.amount.pnl > 0) map[key].wins += 1;
+    });
+    var rows = RULE_GROUPS.filter(function (g) { return map[g.key]; }).map(function (g) {
+      var e = map[g.key];
+      return { key: g.key, label: g.label, count: e.count, winRate: e.wins / e.count, avgPnl: e.pnlSum / e.count, pnlSum: e.pnlSum };
+    });
+    var yes = map.YES;
+    var no = map.NO;
+    return { rows: rows, gap: yes && no ? yes.pnlSum / yes.count - no.pnlSum / no.count : null };
+  }
+
+  // ルールを守ったかどうか別の成績。金額は損益のみ（スワップは保有日数で決まるため含めない）。
+  // gapはYESの平均損益からNOの平均損益を引いた値。
+  // 呼び出し側で有効なトレード(amount.ok && exitDateTime.ok)を期間で絞ってから渡すこと。
+  function ruleComparison(trades) {
+    return {
+      oco: compareBy(trades, function (t) {
+        return t.ocoFollowed === true ? 'YES' : (t.ocoFollowed === false ? 'NO' : '不明');
+      }),
+      scenario: compareBy(trades, function (t) {
+        return classifyAnswer(t.matchedScenario) || 'other';
+      })
+    };
+  }
+
   return {
+    classifyAnswer: classifyAnswer,
+    ruleComparison: ruleComparison,
     swapBreakdown: swapBreakdown,
     periodRange: periodRange,
     filterValidTrades: filterValidTrades,

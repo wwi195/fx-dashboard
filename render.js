@@ -230,6 +230,84 @@
     return chart;
   }
 
+  function gapSentence(gap) {
+    if (gap === null) return 'YESとNOの両方がそろうと差を表示します。';
+    if (Math.round(gap) === 0) return 'YESとNOで1回あたりの平均損益は同じです。';
+    return (gap > 0 ? 'YES' : 'NO') + 'のほうが1回あたり ' + formatMoney(Math.abs(gap)).replace('+', '') + ' よい結果です。';
+  }
+
+  function buildRuleBlock(title, note, comparison) {
+    var block = document.createElement('div');
+    block.className = 'rule-block';
+
+    var heading = document.createElement('h3');
+    heading.textContent = title;
+    block.appendChild(heading);
+
+    var table = document.createElement('table');
+    table.className = 'rule-table';
+    var head = document.createElement('tr');
+    ['回答', '件数', '勝率', '平均損益', '合計損益'].forEach(function (text) {
+      var th = document.createElement('th');
+      th.textContent = text;
+      head.appendChild(th);
+    });
+    table.appendChild(head);
+
+    comparison.rows.forEach(function (row) {
+      var tr = document.createElement('tr');
+      var cells = [
+        { text: row.label },
+        { text: row.count + '件' },
+        { text: formatPercent(row.winRate) },
+        { text: formatMoney(row.avgPnl), cls: row.avgPnl >= 0 ? 'pnl-plus' : 'pnl-minus' },
+        { text: formatMoney(row.pnlSum), cls: row.pnlSum >= 0 ? 'pnl-plus' : 'pnl-minus' }
+      ];
+      cells.forEach(function (c) {
+        var td = document.createElement('td');
+        td.textContent = c.text;
+        if (c.cls) td.className = c.cls;
+        tr.appendChild(td);
+      });
+      table.appendChild(tr);
+    });
+    block.appendChild(table);
+
+    var gap = document.createElement('p');
+    gap.className = 'rule-gap';
+    gap.textContent = gapSentence(comparison.gap);
+    block.appendChild(gap);
+
+    if (note) {
+      var noteEl = document.createElement('p');
+      noteEl.className = 'rule-note';
+      noteEl.textContent = note;
+      block.appendChild(noteEl);
+    }
+    return block;
+  }
+
+  function renderRuleComparison(container, comparison) {
+    container.innerHTML = '';
+    if (comparison.scenario.rows.length === 0) {
+      var empty = document.createElement('p');
+      empty.className = 'empty-note';
+      empty.textContent = 'この期間のトレードはありません。';
+      container.appendChild(empty);
+      return;
+    }
+    container.appendChild(buildRuleBlock(
+      '根拠通りだったか',
+      '自由記述の回答は書き出しで判定しています（「yes。…」「根拠通り…」はYES）。判定できないものは未分類です。',
+      comparison.scenario
+    ));
+    container.appendChild(buildRuleBlock(
+      'OCO通り決済か',
+      'OCO通りには損切りに到達した決済も含みます。',
+      comparison.oco
+    ));
+  }
+
   function appendDetailRow(container, label, value) {
     var row = document.createElement('div');
     row.className = 'detail-row';
@@ -362,6 +440,7 @@
     renderSummary: renderSummary,
     renderDailyChart: renderDailyChart,
     renderPairDirection: renderPairDirection,
+    renderRuleComparison: renderRuleComparison,
     renderTradeList: renderTradeList
   };
 });
