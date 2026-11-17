@@ -355,3 +355,79 @@ T.test('ruleComparison: YESかNOが0件なら差はnull、0件の行は出さな
   T.assertEqual(result.scenario.gap, null);
   T.assertEqual(FX.ruleComparison([]).scenario.rows, []);
 });
+
+function planTrade(direction, lot, pnl, entry) {
+  return {
+    pair: 'ドル円',
+    direction: direction,
+    lot: lot,
+    amount: { ok: true, pnl: pnl, swap: 0 },
+    exitDateTime: { ok: true, date: new Date(2026, 10, 1, 10, 0, 0) },
+    entry: entry
+  };
+}
+
+function oldEntry(price, tp, sl) {
+  return { entryPrice: price, tpPrice: tp, slPrice: sl, tpPips: '', slPips: '' };
+}
+
+T.test('tradePlan: 新しい記録は利確pipsと損切pipsをそのまま使う', function () {
+  var t = planTrade('売り', 5, 0, { entryPrice: '158.303', tpPrice: '', slPrice: '', tpPips: '50', slPips: '30' });
+  T.assertEqual(FX.tradePlan(t), { tpPips: 50, slPips: 30 });
+});
+
+T.test('tradePlan: 過去の記録は価格の差から計算する（買いと売り）', function () {
+  T.assertEqual(FX.tradePlan(planTrade('買い', 5, 0, oldEntry('157.20', '157.70', '156.90'))), { tpPips: 50, slPips: 30 });
+  T.assertEqual(FX.tradePlan(planTrade('売り', 5, 0, oldEntry('158.785', '158.385', '159.085'))), { tpPips: 40, slPips: 30 });
+});
+
+T.test('tradePlan: 価格の後ろの「円」やかっこ書きのメモは無視する', function () {
+  var t = planTrade('売り', 5, 0, oldEntry('161.7(IFO設定、現在値161.6円)', '161.3円', '161.95'));
+  T.assertEqual(FX.tradePlan(t), { tpPips: 40, slPips: 25 });
+});
+
+T.test('tradePlan: 読めない記録や方向と逆の価格、300pips超はnull', function () {
+  T.assertEqual(FX.tradePlan(planTrade('買い', 5, 0, oldEntry('157.2', '未設定', '156.9'))), null);
+  T.assertEqual(FX.tradePlan(planTrade('買い', 5, 0, oldEntry('157.22', '157.17', '156.97'))), null);
+  T.assertEqual(FX.tradePlan(planTrade('買い', 5, 0, oldEntry('154.288', '154.788', '150.989'))), null);
+  T.assertEqual(FX.tradePlan(planTrade('買い', 5, 0, null)), null);
+});
+
+T.test('tradeOutcome: 結果pipsとR（損切り幅を1とした倍率）を出す', function () {
+  var t = planTrade('買い', 5, 13000, oldEntry('157.20', '157.70', '156.80'));
+  var o = FX.tradeOutcome(t);
+  T.assertEqual(o.plan, { tpPips: 50, slPips: 40 });
+  T.assertEqual(o.resultPips, 26);
+  T.assertEqual(o.r, 0.65);
+  T.assertEqual(FX.tradeOutcome(planTrade('買い', null, 13000, oldEntry('157.20', '157.70', '156.80'))), null);
+});
+
+T.test('planVsResult: 計画RR、平均R、目標達成率、目標前の利確、損切り超えを集計する', function () {
+  var e = oldEntry('157.00', '157.50', '156.80'); // 利確50 / 損切20
+  var result = FX.planVsResult([
+    planTrade('買い', 1, 5000, e),   // +50pips = +2.5R 目標どおり
+    planTrade('買い', 1, 2500, e),   // +25pips = +1.25R 目標の50%
+    planTrade('買い', 1, -2000, e),  // -20pips = -1R
+    planTrade('買い', 1, -3000, e),  // -30pips = -1.5R 損切り超え
+    planTrade('買い', 1, 1000, oldEntry('157.0', 'なし', 'なし'))
+  ]);
+  T.assertEqual(result.count, 4);
+  T.assertEqual(result.excluded, 1);
+  T.assertEqual(result.plannedRR, 2.5);
+  T.assertEqual(result.avgR, 0.3125);
+  T.assertEqual(result.winCount, 2);
+  T.assertEqual(result.avgTpReach, 0.75);
+  T.assertEqual(result.earlyTpCount, 1);
+  T.assertEqual(result.lossCount, 2);
+  T.assertEqual(result.avgLossR, -1.25);
+  T.assertEqual(result.overSlCount, 1);
+});
+
+T.test('planVsResult: 対象がなければ平均はnull', function () {
+  var result = FX.planVsResult([]);
+  T.assertEqual(result.count, 0);
+  T.assertEqual(result.plannedRR, null);
+  T.assertEqual(result.avgR, null);
+  T.assertEqual(result.avgTpReach, null);
+  T.assertEqual(result.avgLossR, null);
+});

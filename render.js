@@ -308,6 +308,74 @@
     ));
   }
 
+  function formatR(x) {
+    if (x === null || x === undefined) return '-';
+    return (x >= 0 ? '+' : '') + x.toFixed(2) + 'R';
+  }
+
+  function buildPlanStat(label, value, sub) {
+    var el = document.createElement('div');
+    el.className = 'plan-stat';
+    var labelEl = document.createElement('div');
+    labelEl.className = 'plan-stat-label';
+    labelEl.textContent = label;
+    var valueEl = document.createElement('div');
+    valueEl.className = 'plan-stat-value';
+    valueEl.textContent = value;
+    el.appendChild(labelEl);
+    el.appendChild(valueEl);
+    if (sub) {
+      var subEl = document.createElement('div');
+      subEl.className = 'plan-stat-sub';
+      subEl.textContent = sub;
+      el.appendChild(subEl);
+    }
+    return el;
+  }
+
+  function renderPlanVsResult(container, result) {
+    container.innerHTML = '';
+    if (result.count === 0) {
+      var empty = document.createElement('p');
+      empty.className = 'empty-note';
+      empty.textContent = 'この期間に、計画（利確と損切り）を読めるトレードはありません。';
+      container.appendChild(empty);
+      return;
+    }
+
+    var grid = document.createElement('div');
+    grid.className = 'plan-grid';
+    grid.appendChild(buildPlanStat(
+      '計画の利確幅',
+      result.plannedRR === null ? '-' : '損切りの' + result.plannedRR.toFixed(2) + '倍',
+      '計画どおりなら勝ち ' + formatR(result.plannedRR) + ' / 負け -1.00R'
+    ));
+    grid.appendChild(buildPlanStat('実際の平均', formatR(result.avgR), '1回あたり、損切り幅の何倍を得たか'));
+    grid.appendChild(buildPlanStat(
+      '勝ちの目標達成率',
+      result.avgTpReach === null ? '-' : Math.round(result.avgTpReach * 100) + '%',
+      '目標の手前で利確 ' + result.earlyTpCount + ' / ' + result.winCount + '件'
+    ));
+    grid.appendChild(buildPlanStat(
+      '負けの平均',
+      formatR(result.avgLossR),
+      '損切りラインを超えた負け ' + result.overSlCount + ' / ' + result.lossCount + '件'
+    ));
+    container.appendChild(grid);
+
+    var note = document.createElement('p');
+    note.className = 'rule-note';
+    note.textContent = 'R は損切り幅を1とした成績です（+1.00Rは損切り幅と同じだけ勝った）。損益のみで計算し、対象は' +
+      result.count + '件です' + (result.excluded > 0 ? '（計画の価格を読めない' + result.excluded + '件は除外）' : '') + '。';
+    container.appendChild(note);
+  }
+
+  function formatOutcome(outcome) {
+    var p = outcome.plan;
+    return '利確+' + p.tpPips + ' / 損切-' + p.slPips + 'pips → ' +
+      formatPips(outcome.resultPips) + '（' + formatR(outcome.r) + '）';
+  }
+
   function appendDetailRow(container, label, value) {
     var row = document.createElement('div');
     row.className = 'detail-row';
@@ -396,6 +464,8 @@
 
     if (trade.entry) {
       appendEntryDetails(details, trade.entry);
+      var outcome = FX.tradeOutcome(trade);
+      if (outcome) appendDetailRow(details, '計画 → 結果', formatOutcome(outcome));
     } else {
       appendDetailRow(details, 'エントリー記録', 'なし');
     }
@@ -441,6 +511,7 @@
     renderDailyChart: renderDailyChart,
     renderPairDirection: renderPairDirection,
     renderRuleComparison: renderRuleComparison,
+    renderPlanVsResult: renderPlanVsResult,
     renderTradeList: renderTradeList
   };
 });

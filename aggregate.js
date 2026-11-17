@@ -271,7 +271,83 @@
     };
   }
 
+  var PIPS_PER_YEN_PRICE = 100;   // 1pips = 0.01円
+  var MAX_PLAN_PIPS = 300;        // これを超える計画幅は打ち間違いとみなす
+  var EARLY_TP_RATIO = 0.9;       // 利確目標の9割未満で勝ったら「目標前に利確」
+  var OVER_SL_R = -1.1;           // 損切り幅の1.1倍を超えて負けたら「損切り超え」
+
+  // 「157.2」「156.571円」「161.7(IFO設定…)」のように先頭が数字なら、その数字を返す。
+  function leadingNumber(raw) {
+    var s = String(raw === undefined || raw === null ? '' : raw).normalize('NFKC').trim();
+    var m = s.match(/^(\d+(?:\.\d+)?)\s*円?\s*(?:[(（].*)?$/);
+    return m ? parseFloat(m[1]) : null;
+  }
+
+  function roundTenth(x) {
+    return Math.round(x * 10) / 10;
+  }
+
+  // エントリー前の計画（利確と損切りの幅, pips）。新しい記録はpips欄、過去の記録は価格の差から求める。
+  // 読めない、方向と逆、幅が大きすぎる場合はnull。
+  function tradePlan(trade) {
+    var e = trade.entry;
+    if (!e) return null;
+    if (trade.direction !== '買い' && trade.direction !== '売り') return null;
+    var sign = trade.direction === '買い' ? 1 : -1;
+    var price = leadingNumber(e.entryPrice);
+
+    function distance(pipsRaw, priceRaw, towardProfit) {
+      var pips = leadingNumber(pipsRaw);
+      if (pips !== null) return pips;
+      var target = leadingNumber(priceRaw);
+      if (price === null || target === null) return null;
+      var diff = (target - price) * sign * (towardProfit ? 1 : -1);
+      return roundTenth(diff * PIPS_PER_YEN_PRICE);
+    }
+
+    var tp = distance(e.tpPips, e.tpPrice, true);
+    var sl = distance(e.slPips, e.slPrice, false);
+    if (tp === null || sl === null) return null;
+    if (tp <= 0 || sl <= 0 || tp > MAX_PLAN_PIPS || sl > MAX_PLAN_PIPS) return null;
+    return { tpPips: tp, slPips: sl };
+  }
+
+  // 計画に対する結果。resultPipsは損益から逆算したpips、rは損切り幅を1とした倍率。
+  function tradeOutcome(trade) {
+    var plan = tradePlan(trade);
+    if (!plan || !trade.lot || !trade.amount || !trade.amount.ok) return null;
+    var resultPips = trade.amount.pnl / (YEN_PER_PIP_PER_LOT * trade.lot);
+    return { plan: plan, resultPips: resultPips, r: resultPips / plan.slPips };
+  }
+
+  function average(arr) {
+    return arr.length > 0 ? sum(arr) / arr.length : null;
+  }
+
+  // 計画と結果のズレの集計。
+  // 呼び出し側で有効なトレード(amount.ok && exitDateTime.ok)を期間で絞ってから渡すこと。
+  function planVsResult(trades) {
+    var outcomes = trades.map(tradeOutcome).filter(function (o) { return o !== null; });
+    var wins = outcomes.filter(function (o) { return o.resultPips > 0; });
+    var losses = outcomes.filter(function (o) { return o.resultPips < 0; });
+    return {
+      count: outcomes.length,
+      excluded: trades.length - outcomes.length,
+      plannedRR: average(outcomes.map(function (o) { return o.plan.tpPips / o.plan.slPips; })),
+      avgR: average(outcomes.map(function (o) { return o.r; })),
+      winCount: wins.length,
+      avgTpReach: average(wins.map(function (o) { return o.resultPips / o.plan.tpPips; })),
+      earlyTpCount: wins.filter(function (o) { return o.resultPips < o.plan.tpPips * EARLY_TP_RATIO; }).length,
+      lossCount: losses.length,
+      avgLossR: average(losses.map(function (o) { return o.r; })),
+      overSlCount: losses.filter(function (o) { return o.r < OVER_SL_R; }).length
+    };
+  }
+
   return {
+    tradePlan: tradePlan,
+    tradeOutcome: tradeOutcome,
+    planVsResult: planVsResult,
     classifyAnswer: classifyAnswer,
     ruleComparison: ruleComparison,
     swapBreakdown: swapBreakdown,
