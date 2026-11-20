@@ -35,7 +35,15 @@
         <button type="button" data-daily-metric="recent">直近20件</button>
         <button type="button" data-daily-metric="cumulative">累積</button>
       </div>
-      <canvas id="daily-chart"></canvas>
+      <div class="chart-scroll-wrap">
+        <div id="daily-chart-scroll" class="chart-scroll">
+          <div id="daily-chart-inner" class="chart-scroll-inner">
+            <canvas id="daily-chart"></canvas>
+          </div>
+        </div>
+        <canvas id="daily-chart-yaxis" class="chart-yaxis-overlay" hidden></canvas>
+      </div>
+      <p id="daily-chart-hint" class="chart-scroll-hint" hidden>← 横にスライドして過去を表示</p>
     </section>
 
     <section class="chart-section">

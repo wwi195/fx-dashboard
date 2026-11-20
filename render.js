@@ -199,12 +199,69 @@
     }
   }
 
+  var BAR_PX_PER_POINT = 36;
+  var CUMULATIVE_PX_PER_POINT = 14;
+
+  // 横スクロール時も金額軸（Y軸）が見えるよう、描画済みのY軸部分を左端に固定した別canvasへ写す
+  function pinnedYAxisPlugin(overlay) {
+    return {
+      id: 'pinnedYAxis',
+      afterRender: function (chart) {
+        var src = chart.canvas;
+        var dpr = chart.currentDevicePixelRatio || 1;
+        var axisWidth = Math.ceil(chart.chartArea.left);
+        // X軸ラベル・凡例は覆わないよう、グラフ領域の下端までだけ固定する
+        var height = Math.ceil(chart.chartArea.bottom) + 8;
+        overlay.width = axisWidth * dpr;
+        overlay.height = height * dpr;
+        overlay.style.width = axisWidth + 'px';
+        overlay.style.height = height + 'px';
+        var ctx = overlay.getContext('2d');
+        var bg = getComputedStyle(document.body).backgroundColor || '#fafafa';
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, overlay.width, overlay.height);
+        ctx.drawImage(src, 0, 0, axisWidth * dpr, height * dpr, 0, 0, axisWidth * dpr, height * dpr);
+      }
+    };
+  }
+
   function renderDailyChart(canvas, data, prevChart, metric) {
     if (prevChart) prevChart.destroy();
     var config;
     if (metric === 'recent') config = FX.buildRecentTradesChartConfig(data);
     else if (metric === 'cumulative') config = FX.buildCumulativeChartConfig(data);
     else config = FX.buildDailyPnlChartConfig(data);
+
+    // 横スライド: データ数に応じてグラフの横幅を広げ、最新（右端）を初期表示する
+    var inner = canvas.parentElement;
+    var scroller = inner && inner.parentElement;
+    var hint = document.getElementById('daily-chart-hint');
+    if (scroller && scroller.classList.contains('chart-scroll')) {
+      var pxPer = metric === 'cumulative' ? CUMULATIVE_PX_PER_POINT : BAR_PX_PER_POINT;
+      var viewWidth = scroller.clientWidth;
+      var needWidth = data.length * pxPer;
+      // 直近20件は件数固定なのでスライド不要
+      var scrollable = metric !== 'recent' && needWidth > viewWidth;
+      inner.style.width = scrollable ? needWidth + 'px' : '100%';
+      config.options = config.options || {};
+      config.options.responsive = true;
+      config.options.maintainAspectRatio = false;
+      if (scrollable) {
+        // 横幅を広げた分、日付ラベルを間引かず全件表示する
+        var x = (config.options.scales && config.options.scales.x) || {};
+        x.ticks = Object.assign({}, x.ticks, { autoSkip: metric === 'cumulative', maxRotation: 0 });
+        config.options.scales = Object.assign({}, config.options.scales, { x: x });
+      }
+      if (hint) hint.hidden = !scrollable;
+      var overlay = document.getElementById('daily-chart-yaxis');
+      if (overlay) overlay.hidden = !scrollable;
+      if (scrollable && overlay) {
+        config.plugins = (config.plugins || []).concat([pinnedYAxisPlugin(overlay)]);
+      }
+      var chart = new Chart(canvas.getContext('2d'), config);
+      requestAnimationFrame(function () { scroller.scrollLeft = scroller.scrollWidth; });
+      return chart;
+    }
     return new Chart(canvas.getContext('2d'), config);
   }
 

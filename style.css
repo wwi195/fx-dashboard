@@ -206,6 +206,37 @@ body {
   max-height: 260px;
 }
 
+.chart-scroll-wrap {
+  position: relative;
+}
+
+.chart-yaxis-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  box-shadow: 4px 0 6px -4px rgba(0, 0, 0, 0.15);
+}
+
+.chart-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+
+.chart-scroll-inner {
+  position: relative;
+  height: 260px;
+  min-width: 100%;
+}
+
+.chart-scroll-hint {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: right;
+}
+
 .chart-tabs {
   display: flex;
   gap: 6px;
