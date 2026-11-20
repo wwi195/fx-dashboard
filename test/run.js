@@ -2,6 +2,7 @@ require('./parse.test.js');
 require('./match.test.js');
 require('./aggregate.test.js');
 require('./chart-data.test.js');
+require('./check-logic.test.js');
 
 var harness = require('./harness.js');
 var summary = harness.run();
