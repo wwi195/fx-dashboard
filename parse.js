@@ -113,6 +113,17 @@
     return result;
   }
 
+  // 見出しに key を含む列を読む（フォームの質問文に補足が付いても読めるように）。
+  function columnReaderIncludes(headers) {
+    var names = (headers || []).map(function (h) { return String(h).trim(); });
+    return function (row, key) {
+      for (var i = 0; i < names.length; i++) {
+        if (names[i].indexOf(key) !== -1) return String(row[i] || '').trim();
+      }
+      return '';
+    };
+  }
+
   function columnReader(headers) {
     var names = (headers || []).map(function (h) { return String(h).trim(); });
     return function (row, name) {
@@ -215,6 +226,7 @@
   // 2026-11のフォーム改造で増えた列は、位置ではなく見出し名で読む。
   function normalizeEntry(rows, headers) {
     var read = columnReader(headers);
+    var readIn = columnReaderIncludes(headers);
     return rows.map(function (row) {
       var ts = parseDateTime(row[0], null);
       var lotNum = parseFloat(row[3]);
@@ -232,13 +244,16 @@
         tpPips: read(row, '利確pips'),
         slPips: read(row, '損切pips'),
         holdUntil: read(row, 'いつまで持つ？'),
-        exitPlan: read(row, 'OCO以外で動くならどんなとき？')
+        exitPlan: read(row, 'OCO以外で動くならどんなとき？'),
+        setupType: readIn(row, '根拠の型'),
+        mindset: readIn(row, 'エントリー時の気持ち')
       };
     });
   }
 
   function normalizeExit(rows, headers) {
     var read = columnReader(headers);
+    var readIn = columnReaderIncludes(headers);
     return rows.map(function (row) {
       var submissionTs = parseDateTime(row[0], null);
       var submissionDate = submissionTs.ok ? submissionTs.date : null;
@@ -265,7 +280,9 @@
         amount: applySwapColumn(parseAmount(row[6]), row[6], read(row, 'スワップ(円)')),
         ocoFollowed: ocoRaw === 'YES' ? true : (ocoRaw === 'NO' ? false : null),
         ocoReason: row[8] || '',
-        matchedScenario: row[9] || ''
+        matchedScenario: row[9] || '',
+        exitMethod: readIn(row, '決済の仕方'),
+        manualReason: readIn(row, '手動決済した理由')
       };
     });
   }

@@ -271,6 +271,49 @@
     };
   }
 
+  // 2026-11に追加した「行動」の選択式項目。選択肢の並び順で表示する。
+  var BEHAVIOR_OPTIONS = {
+    setupType: ['押し目買い・戻り売り', '逆張り（RSIなど）', 'トレンドに乗る', '高値・安値ブレイク', '指標・介入・ニュース', '直感'],
+    mindset: ['冷静', '取り返したい', '焦り・退屈', '勝って勢いづいている'],
+    exitMethod: ['OCO（利確・損切）に到達', '事前に決めた条件で手動決済', '気持ちで手動決済'],
+    manualReason: ['利益を守りたくなった', '損失が怖くなった', '時間切れ', '根拠が崩れた', '生活の都合', 'その他']
+  };
+  var UNRECORDED = '未記入';
+
+  function behaviorValue(trade, field) {
+    var source = (field === 'setupType' || field === 'mindset') ? trade.entry : trade;
+    var v = source && source[field] ? String(source[field]).trim() : '';
+    return v === '' ? UNRECORDED : v;
+  }
+
+  // 項目ごとの成績。金額は損益のみ。手動決済の理由は、理由が記入されたトレードだけを数える。
+  // 呼び出し側で有効なトレードを期間で絞ってから渡すこと。
+  function behaviorComparison(trades, field) {
+    var options = BEHAVIOR_OPTIONS[field] || [];
+    var map = {};
+    var order = [];
+    trades.forEach(function (t) {
+      var key = behaviorValue(t, field);
+      if (field === 'manualReason' && key === UNRECORDED) return;
+      if (!map[key]) { map[key] = { count: 0, wins: 0, pnlSum: 0 }; order.push(key); }
+      map[key].count += 1;
+      map[key].pnlSum += t.amount.pnl;
+      if (t.amount.pnl > 0) map[key].wins += 1;
+    });
+    function rank(key) {
+      if (key === UNRECORDED) return 1e6;
+      var i = options.indexOf(key);
+      return i === -1 ? 1000 + order.indexOf(key) : i;
+    }
+    var keys = order.slice().sort(function (a, b) { return rank(a) - rank(b); });
+    var rows = keys.map(function (key) {
+      var e = map[key];
+      return { key: key, label: key, count: e.count, winRate: e.wins / e.count, avgPnl: e.pnlSum / e.count, pnlSum: e.pnlSum };
+    });
+    var recorded = rows.filter(function (r) { return r.key !== UNRECORDED; });
+    return { rows: rows, recordedCount: recorded.reduce(function (n, r) { return n + r.count; }, 0) };
+  }
+
   var PIPS_PER_YEN_PRICE = 100;   // 1pips = 0.01円
   var MAX_PLAN_PIPS = 300;        // これを超える計画幅は打ち間違いとみなす
   var EARLY_TP_RATIO = 0.9;       // 利確目標の9割未満で勝ったら「目標前に利確」
@@ -350,6 +393,8 @@
     planVsResult: planVsResult,
     classifyAnswer: classifyAnswer,
     ruleComparison: ruleComparison,
+    behaviorComparison: behaviorComparison,
+    BEHAVIOR_OPTIONS: BEHAVIOR_OPTIONS,
     swapBreakdown: swapBreakdown,
     periodRange: periodRange,
     filterValidTrades: filterValidTrades,

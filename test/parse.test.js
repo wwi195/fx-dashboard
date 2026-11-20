@@ -299,3 +299,19 @@ T.test('plannedPrice: 価格やpipsが数字でなければnull', function () {
   T.assertEqual(FX.plannedPrice('158.2', '買い', '目安', 'tp'), null);
   T.assertEqual(FX.plannedPrice('158.2', '不明', '50', 'tp'), null);
 });
+
+T.test('normalizeEntry/Exit: 追加の選択式項目を見出しの一部一致で読む', function () {
+  var eh = ['タイムスタンプ','通貨ペア','方向','ロット数','根拠','エントリー価格','利確','損切','条件','根拠の型','エントリー時の気持ち（正直に）'];
+  var e = FX.normalizeEntry([['2026/11/21 10:00:00','ドル円','買い','5','x','150','','','','直感','取り返したい']], eh)[0];
+  T.assertEqual(e.setupType, '直感');
+  T.assertEqual(e.mindset, '取り返したい');
+  var xh = ['タイムスタンプ','通貨ペア','方向','ロット','エントリー日時','決済日時','結果金額(円)','OCO通り決済か','理由','根拠通り','スワップ(円)','決済の仕方','手動決済した理由'];
+  var x = FX.normalizeExit([['2026/11/21 11:00:00','ドル円','買い','5','11/21 10:00','11/21 10:50','1000','','','','','気持ちで手動決済','利益を守りたくなった']], xh)[0];
+  T.assertEqual(x.exitMethod, '気持ちで手動決済');
+  T.assertEqual(x.manualReason, '利益を守りたくなった');
+});
+
+T.test('normalizeEntry: 追加項目の列がなければ空文字', function () {
+  var e = FX.normalizeEntry([['2026/11/21 10:00:00','ドル円','買い','5','x','150','','','']], ['タイムスタンプ'])[0];
+  T.assertEqual(e.setupType, '');
+});

@@ -293,7 +293,7 @@
     return (gap > 0 ? 'YES' : 'NO') + 'のほうが1回あたり ' + formatMoney(Math.abs(gap)).replace('+', '') + ' よい結果です。';
   }
 
-  function buildRuleBlock(title, note, comparison) {
+  function buildRuleBlock(title, note, comparison, firstHeader) {
     var block = document.createElement('div');
     block.className = 'rule-block';
 
@@ -304,7 +304,7 @@
     var table = document.createElement('table');
     table.className = 'rule-table';
     var head = document.createElement('tr');
-    ['回答', '件数', '勝率', '平均損益', '合計損益'].forEach(function (text) {
+    [firstHeader || '回答', '件数', '勝率', '平均損益', '合計損益'].forEach(function (text) {
       var th = document.createElement('th');
       th.textContent = text;
       head.appendChild(th);
@@ -330,10 +330,12 @@
     });
     block.appendChild(table);
 
-    var gap = document.createElement('p');
-    gap.className = 'rule-gap';
-    gap.textContent = gapSentence(comparison.gap);
-    block.appendChild(gap);
+    if (comparison.gap !== undefined) {
+      var gap = document.createElement('p');
+      gap.className = 'rule-gap';
+      gap.textContent = gapSentence(comparison.gap);
+      block.appendChild(gap);
+    }
 
     if (note) {
       var noteEl = document.createElement('p');
@@ -363,6 +365,42 @@
       'OCO通りには損切りに到達した決済も含みます。',
       comparison.oco
     ));
+  }
+
+  var BEHAVIOR_BLOCKS = [
+    { field: 'setupType', title: '根拠の型', header: '型', note: 'どの型のエントリーが勝てているか。' },
+    { field: 'mindset', title: 'エントリー時の気持ち', header: '気持ち', note: '「取り返したい」「焦り・退屈」で入ったトレードの成績に注目。' },
+    { field: 'exitMethod', title: '決済の仕方', header: '決済', note: '「気持ちで手動決済」が多いほど、計画どおりに運べていません。' },
+    { field: 'manualReason', title: '手動決済した理由', header: '理由', note: '理由が記入されたトレードだけを数えています。' }
+  ];
+
+  // 行動（自分で選べること）別の成績。新しいフォーム項目が未記入の過去分は「未記入」にまとめる。
+  function renderBehaviorComparison(container, trades) {
+    container.innerHTML = '';
+    if (trades.length === 0) {
+      var empty = document.createElement('p');
+      empty.className = 'empty-note';
+      empty.textContent = 'この期間のトレードはありません。';
+      container.appendChild(empty);
+      return;
+    }
+    BEHAVIOR_BLOCKS.forEach(function (b) {
+      var comparison = FX.behaviorComparison(trades, b.field);
+      if (comparison.recordedCount === 0) {
+        var block = document.createElement('div');
+        block.className = 'rule-block';
+        var h = document.createElement('h3');
+        h.textContent = b.title;
+        block.appendChild(h);
+        var p = document.createElement('p');
+        p.className = 'empty-note';
+        p.textContent = 'まだ記録がありません。フォームに「' + b.title + '」を追加すると集計されます。';
+        block.appendChild(p);
+        container.appendChild(block);
+        return;
+      }
+      container.appendChild(buildRuleBlock(b.title, b.note, comparison, b.header));
+    });
   }
 
   function formatR(x) {
@@ -568,6 +606,7 @@
     renderDailyChart: renderDailyChart,
     renderPairDirection: renderPairDirection,
     renderRuleComparison: renderRuleComparison,
+    renderBehaviorComparison: renderBehaviorComparison,
     renderPlanVsResult: renderPlanVsResult,
     renderTradeList: renderTradeList
   };

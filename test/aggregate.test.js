@@ -431,3 +431,49 @@ T.test('planVsResult: 対象がなければ平均はnull', function () {
   T.assertEqual(result.avgTpReach, null);
   T.assertEqual(result.avgLossR, null);
 });
+
+function behaviorTrade(pnl, entryFields, exitFields) {
+  var t = { amount: { ok: true, pnl: pnl, swap: 0 }, entry: entryFields || {} };
+  Object.keys(exitFields || {}).forEach(function (k) { t[k] = exitFields[k]; });
+  return t;
+}
+
+T.test('behaviorComparison: 根拠の型を選択肢の順に集計し、未記入は最後', function () {
+  var trades = [
+    behaviorTrade(-1000, {}),
+    behaviorTrade(2000, { setupType: '直感' }),
+    behaviorTrade(3000, { setupType: '押し目買い・戻り売り' }),
+    behaviorTrade(-1000, { setupType: '押し目買い・戻り売り' })
+  ];
+  var r = FX.behaviorComparison(trades, 'setupType');
+  T.assertEqual(r.rows.map(function (x) { return x.key; }).join(','), '押し目買い・戻り売り,直感,未記入');
+  T.assertEqual(r.rows[0].count, 2);
+  T.assertEqual(r.rows[0].pnlSum, 2000);
+  T.assertEqual(r.rows[0].winRate, 0.5);
+  T.assertEqual(r.recordedCount, 3);
+});
+
+T.test('behaviorComparison: 決済の仕方は決済後記録の値を使う', function () {
+  var trades = [
+    behaviorTrade(500, {}, { exitMethod: '気持ちで手動決済' }),
+    behaviorTrade(-800, {}, { exitMethod: 'OCO（利確・損切）に到達' })
+  ];
+  var r = FX.behaviorComparison(trades, 'exitMethod');
+  T.assertEqual(r.rows[0].key, 'OCO（利確・損切）に到達');
+  T.assertEqual(r.rows[1].key, '気持ちで手動決済');
+});
+
+T.test('behaviorComparison: 手動決済の理由は未記入を数えない', function () {
+  var trades = [
+    behaviorTrade(500, {}, { manualReason: '' }),
+    behaviorTrade(-800, {}, { manualReason: '損失が怖くなった' })
+  ];
+  var r = FX.behaviorComparison(trades, 'manualReason');
+  T.assertEqual(r.rows.length, 1);
+  T.assertEqual(r.recordedCount, 1);
+});
+
+T.test('behaviorComparison: 選択肢にない値（その他の記述）も集計する', function () {
+  var r = FX.behaviorComparison([behaviorTrade(100, { mindset: '眠い' })], 'mindset');
+  T.assertEqual(r.rows[0].key, '眠い');
+});

@@ -456,3 +456,14 @@ body {
     grid-template-columns: repeat(4, 1fr);
   }
 }
+
+.legacy-rules {
+  margin-top: 12px;
+}
+
+.legacy-rules summary {
+  font-size: 13px;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 6px 0;
+}
