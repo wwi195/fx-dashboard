@@ -94,6 +94,7 @@ T.test('checkFormFields: 質問ごとに 🟢/🟡/🔴 付きで、勝った後
   T.assertEqual(fields['勝ちで気が大きく'], '');
   T.assertEqual(fields['気持ちを一言で'], 'ちょっとそわそわ');
   T.assertEqual(fields['判定'], '1時間様子見');
+  T.assertEqual(fields['点数'], '1');
   T.assertEqual(fields['選んだ行動'], 'わかった、やめとく');
   T.assertEqual(fields['入る理由'], '');
 });

@@ -157,6 +157,7 @@
     });
     fields['気持ちを一言で'] = record.feeling || '';
     fields['判定'] = record.verdict.label;
+    fields['点数'] = record.verdict.points == null ? '' : String(record.verdict.points);
     fields['選んだ行動'] = record.action || '';
     fields['入る理由'] = record.entryReason || '';
     return fields;
