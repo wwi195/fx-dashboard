@@ -21,43 +21,52 @@ T.test('checkVerdict: 全部🟢なら入ってOK', function () {
   T.assertEqual(v.label, '入ってOK');
 });
 
-T.test('checkVerdict: 🟡が1つだけなら入ってOK', function () {
+T.test('checkVerdict: 🟡1つ（1点）で1時間様子見', function () {
   var a = allGreen('迷っている');
   a.revenge = '少し気になる';
-  T.assertEqual(FX.checkVerdict('迷っている', a).key, 'go');
-});
-
-T.test('checkVerdict: 🟡が2つで今日は見るだけ', function () {
-  var a = allGreen('迷っている');
-  a.revenge = '少し気になる';
-  a.mood = '浮ついてる';
   var v = FX.checkVerdict('迷っている', a);
-  T.assertEqual(v.key, 'watch');
-  T.assertEqual(v.label, '今日は見るだけ');
+  T.assertEqual(v.key, 'wait1');
+  T.assertEqual(v.points, 1);
+  T.assertEqual(v.hours, 1);
+  T.assertEqual(v.label, '1時間様子見');
+  T.assertEqual(v.style, 'watch');
 });
 
-T.test('checkVerdict: 🔴が1つでもあれば今日はやめとこ', function () {
+T.test('checkVerdict: 2点で2時間・3点で4時間・4点で8時間・5点以上で今日はやめ', function () {
   var a = allGreen('迷っている');
-  a.reason = 'チャートの外';
+  a.revenge = 'ある'; // 2点
+  T.assertEqual(FX.checkVerdict('迷っている', a).key, 'wait2');
+  T.assertEqual(FX.checkVerdict('迷っている', a).label, '2時間休む');
+  a.mood = '浮ついてる'; // 3点
+  T.assertEqual(FX.checkVerdict('迷っている', a).key, 'wait4');
+  a.mood = '焦ってる'; // 4点
+  T.assertEqual(FX.checkVerdict('迷っている', a).key, 'wait8');
+  T.assertEqual(FX.checkVerdict('迷っている', a).hours, 8);
+  a.fomo = '少しなる'; // 5点
   var v = FX.checkVerdict('迷っている', a);
   T.assertEqual(v.key, 'stop');
-  T.assertEqual(v.label, '今日はやめとこ');
+  T.assertEqual(v.label, '今日はもうやめておこう');
+  T.assertEqual(v.hours, null);
 });
 
-T.test('checkVerdict: 体調は寝不足かお酒で🔴、疲れだけなら🟡', function () {
+T.test('checkVerdict: 体調は寝不足かお酒なら点数に関係なく今日はやめ、疲れだけなら1点', function () {
   var a = allGreen('迷っている');
   a.body = ['疲れている'];
   T.assertEqual(FX.checkLevel(FX.checkQuestionsFor('迷っている')[3], a.body), 'yellow');
+  T.assertEqual(FX.checkVerdict('迷っている', a).key, 'wait1');
   a.body = ['疲れている', 'お酒が入っている'];
   T.assertEqual(FX.checkVerdict('迷っている', a).key, 'stop');
+  T.assertEqual(FX.checkVerdict('迷っている', a).points, 2);
   a.body = ['寝不足'];
   T.assertEqual(FX.checkVerdict('迷っている', a).key, 'stop');
 });
 
-T.test('checkVerdict: 勝った後の追加質問も判定に入る', function () {
+T.test('checkVerdict: 勝った後の追加質問も点数に入る', function () {
   var a = allGreen('勝った後（インターバル明け）');
   a.winBasis = '「今ならいける」だけ';
-  T.assertEqual(FX.checkVerdict('勝った後（インターバル明け）', a).key, 'stop');
+  T.assertEqual(FX.checkVerdict('勝った後（インターバル明け）', a).key, 'wait2');
+  a.winBig = '少しなってる';
+  T.assertEqual(FX.checkVerdict('勝った後（インターバル明け）', a).key, 'wait4');
 });
 
 T.test('checkVerdict: 判定の理由として🔴🟡の質問を返す', function () {
@@ -84,7 +93,7 @@ T.test('checkFormFields: 質問ごとに 🟢/🟡/🔴 付きで、勝った後
   T.assertEqual(fields['取り返したい負け'], '🟢 ない');
   T.assertEqual(fields['勝ちで気が大きく'], '');
   T.assertEqual(fields['気持ちを一言で'], 'ちょっとそわそわ');
-  T.assertEqual(fields['判定'], '入ってOK');
+  T.assertEqual(fields['判定'], '1時間様子見');
   T.assertEqual(fields['選んだ行動'], 'わかった、やめとく');
   T.assertEqual(fields['入る理由'], '');
 });

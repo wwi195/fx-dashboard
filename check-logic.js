@@ -73,11 +73,31 @@
   var LEVEL_MARK = { green: '🟢', yellow: '🟡', red: '🔴' };
   var LEVEL_RANK = { green: 0, yellow: 1, red: 2 };
 
+  // 点数：🟢0点・🟡1点・🔴2点（複数選択の質問は一番悪い色の点）。
+  // 合計で判定：0点 入ってOK／1点 1時間様子見／2点 2時間／3点 4時間／4点 8時間／5点以上 今日はもうやめておこう。
+  // 体調の「寝不足」「お酒が入っている」は時間では戻らないので、点数に関係なく今日はもうやめておこう。
+  var LEVEL_POINTS = { green: 0, yellow: 1, red: 2 };
+  var TODAY_STOP_BODY = ['寝不足', 'お酒が入っている'];
+
+  // style は画面の色（go=緑・watch=黄・stop=赤）。hours は休む時間（今日はやめは null）
   var VERDICTS = {
-    go: { key: 'go', label: '入ってOK', message: '今の状態なら、根拠どおりに入ってOK。OCOはいつも通りに。' },
-    watch: { key: 'watch', label: '今日は見るだけ', message: '気になるところが2つ以上。今日はチャートを見るだけにしよう。' },
-    stop: { key: 'stop', label: '今日はやめとこ', message: '🔴があります。今日はトレードしない日。チャートも閉じよう。' }
+    go: { key: 'go', style: 'go', hours: 0, label: '入ってOK', message: '今の状態なら、根拠どおりに入ってOK。OCOはいつも通りに。' },
+    wait1: { key: 'wait1', style: 'watch', hours: 1, label: '1時間様子見', message: '少し気になるところがあります。1時間はチャートを見るだけ。入らない。1時間たったら、もう一度チェックしよう。' },
+    wait2: { key: 'wait2', style: 'stop', hours: 2, label: '2時間休む', message: 'チャートを閉じて、2時間忘れよう。休んだら、もう一度チェック。' },
+    wait4: { key: 'wait4', style: 'stop', hours: 4, label: '4時間休む', message: 'チャートを閉じて、4時間忘れよう。休んだら、もう一度チェック。' },
+    wait8: { key: 'wait8', style: 'stop', hours: 8, label: '8時間休む', message: 'チャートを閉じて、8時間忘れよう。ひと眠りしてから、もう一度チェック。' },
+    stop: { key: 'stop', style: 'stop', hours: null, label: '今日はもうやめておこう', message: '今日はトレードしない日。チャートも閉じよう。' }
   };
+  var BODY_STOP_MESSAGE = '寝不足・お酒は、時間をおいても戻りません。今日はトレードしない日。チャートも閉じよう。';
+
+  function verdictKeyForPoints(points) {
+    if (points <= 0) return 'go';
+    if (points === 1) return 'wait1';
+    if (points === 2) return 'wait2';
+    if (points === 3) return 'wait4';
+    if (points === 4) return 'wait8';
+    return 'stop';
+  }
 
   function checkQuestionsFor(situation) {
     return situation === WIN_SITUATION ? COMMON_QUESTIONS.concat(WIN_QUESTIONS) : COMMON_QUESTIONS.slice();
@@ -96,19 +116,27 @@
 
   function checkVerdict(situation, answers) {
     var flags = [];
-    var reds = 0;
-    var yellows = 0;
+    var points = 0;
+    var bodyStop = false;
     checkQuestionsFor(situation).forEach(function (q) {
-      var level = checkLevel(q, answers[q.id]);
-      if (level === 'red') reds += 1;
-      if (level === 'yellow') yellows += 1;
-      if (level === 'red' || level === 'yellow') flags.push({ id: q.id, text: q.text, level: level });
+      var answer = answers[q.id];
+      var level = checkLevel(q, answer);
+      if (level) points += LEVEL_POINTS[level];
+      if (level === 'red' || level === 'yellow') flags.push({ id: q.id, text: q.text, level: level, points: LEVEL_POINTS[level] });
+      if (q.id === 'body') {
+        var labels = Array.isArray(answer) ? answer : [answer];
+        if (TODAY_STOP_BODY.some(function (b) { return labels.indexOf(b) !== -1; })) bodyStop = true;
+      }
     });
-    var key = reds > 0 ? 'stop' : yellows >= 2 ? 'watch' : 'go';
+    var key = bodyStop ? 'stop' : verdictKeyForPoints(points);
+    var v = VERDICTS[key];
     return {
       key: key,
-      label: VERDICTS[key].label,
-      message: VERDICTS[key].message,
+      style: v.style,
+      hours: v.hours,
+      points: points,
+      label: v.label,
+      message: bodyStop ? BODY_STOP_MESSAGE : v.message,
       flags: flags
     };
   }

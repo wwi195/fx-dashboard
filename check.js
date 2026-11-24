@@ -155,8 +155,9 @@
   function renderVerdict() {
     var v = state.verdict;
     var flagList = v.flags.length === 0 ? null : el('ul', { 'class': 'check-flags' }, v.flags.map(function (f) {
-      return el('li', { text: FX.CHECK_LEVEL_MARK[f.level] + ' ' + f.text });
+      return el('li', { text: FX.CHECK_LEVEL_MARK[f.level] + ' ' + f.text + '（' + f.points + '点）' });
     }));
+    var until = untilText(v);
     var actions = v.key === 'go'
       ? [
           choiceButton('エントリーする', function () { submit('エントリーする'); }),
@@ -167,14 +168,34 @@
           choiceButton('それでも入る（理由を書く）', function () { state.step = 'reason'; render(); }, 'check-override')
         ];
     return [
-      el('div', { 'class': 'check-verdict check-verdict-' + v.key }, [
+      el('div', { 'class': 'check-verdict check-verdict-' + v.style }, [
         el('p', { 'class': 'check-verdict-label', text: v.label }),
-        el('p', { 'class': 'check-verdict-message', text: v.message })
+        el('p', { 'class': 'check-verdict-message', text: v.message }),
+        until ? el('p', { 'class': 'check-verdict-message', text: until }) : null
       ]),
-      flagList ? el('p', { 'class': 'check-hint', text: '引っかかったところ' }) : null,
+      flagList ? el('p', { 'class': 'check-hint', text: '引っかかったところ（合計 ' + v.points + '点）' }) : null,
       flagList,
       el('div', { 'class': 'check-choices' }, actions)
     ];
+  }
+
+  // 休む時間があれば「次のチェックは 14:30 以降」
+  function untilText(v) {
+    if (!v.hours) return '';
+    var t = new Date(Date.now() + v.hours * 60 * 60 * 1000);
+    var hm = t.getHours() + ':' + String(t.getMinutes()).padStart(2, '0');
+    var day = t.getDate() !== new Date().getDate() ? '明日 ' : '';
+    return '次のチェックは ' + day + hm + ' 以降';
+  }
+
+  function doneMessage() {
+    var v = state.verdict;
+    if (state.action === 'それでも入る' || state.action === 'エントリーする') {
+      return '入るなら、エントリー前フォームもいつも通りに。OCOを忘れずに。';
+    }
+    if (v.key === 'wait1') return 'やめると決めた自分、えらい。1時間はチャートを見るだけ。' + untilText(v) + '。';
+    if (v.hours) return 'やめると決めた自分、えらい。チャートを閉じよう。' + untilText(v) + '。';
+    return 'やめると決めた自分、えらい。今日はチャートを閉じよう。';
   }
 
   function renderReason() {
@@ -250,9 +271,7 @@
   function renderDone() {
     return [
       el('h1', { 'class': 'check-question', text: '記録しました' }),
-      el('p', { 'class': 'check-hint', text: state.action === 'それでも入る' || state.action === 'エントリーする'
-        ? '入るなら、エントリー前フォームもいつも通りに。OCOを忘れずに。'
-        : 'やめると決めた自分、えらい。今日はチャートを閉じよう。' })
+      el('p', { 'class': 'check-hint', text: doneMessage() })
     ].concat(renderSummaryBlock()).concat([
       el('a', { href: 'index.html', 'class': 'check-secondary check-link-button', text: 'ダッシュボードに戻る' })
     ]);
